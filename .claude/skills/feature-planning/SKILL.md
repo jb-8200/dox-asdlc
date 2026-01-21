@@ -116,12 +116,26 @@ Tasks are atomic units of work, each completable in under 2 hours.
 
 ### T01: {Task description}
 - [ ] Estimate: {30min | 1hr | 2hr}
+- [ ] Model: {haiku | sonnet | opus} (see Model Recommendations below)
 - [ ] Tests: {test file or "N/A"}
 - [ ] Dependencies: {T00 or "None"}
 - [ ] Notes: {implementation hints}
 
 ### T02: {Next task}
 ...
+
+## Model Recommendations
+
+Assign models based on task complexity:
+
+| Task Type | Model | Rationale |
+|-----------|-------|-----------|
+| Simple implementation (CRUD, straightforward logic) | haiku | Fast, cost-effective |
+| Standard implementation (new features, refactoring) | haiku | Cost-effective, sufficient for well-scoped tasks |
+| Complex implementation (architectural decisions, debugging) | sonnet | Better reasoning for edge cases |
+| Design/Planning (architecture, design decisions) | sonnet | Required for nuanced judgments |
+| Code review/Analysis (reviewing complex code) | sonnet | Better code comprehension |
+| Escalation (stuck on task, needs resolution) | opus | Most capable model for difficult problems |
 
 ## Completion Checklist
 

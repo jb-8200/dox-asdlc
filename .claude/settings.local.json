@@ -6,7 +6,20 @@
       "Bash(git fetch:*)",
       "Bash(git branch:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(chmod:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(bash:*)",
+      "Bash(python3:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(echo:*)",
+      "Bash(./scripts/check-planning.sh:*)",
+      "Bash(test_json='[{\"\"filename\"\":\"\"src/test.py\"\",\"\"location\"\":{\"\"row\"\":42,\"\"column\"\":1},\"\"code\"\":\"\"E501\"\",\"\"message\"\":\"\"Line too long\"\",\"\"fix\"\":{\"\"applicability\"\":\"\"automatic\"\"}}]')",
+      "Bash(test_json='{\"\"tests\"\":[{\"\"nodeid\"\":\"\"tests/test_example.py::test_passing\"\",\"\"outcome\"\":\"\"passed\"\",\"\"lineno\"\":10,\"\"filename\"\":\"\"tests/test_example.py\"\",\"\"call\"\":{}},{\"\"nodeid\"\":\"\"tests/test_example.py::test_failing\"\",\"\"outcome\"\":\"\"failed\"\",\"\"lineno\"\":20,\"\"filename\"\":\"\"tests/test_example.py\"\",\"\"call\"\":{\"\"longrepr\"\":\"\"AssertionError: expected 42\"\"}},{\"\"nodeid\"\":\"\"tests/test_example.py::test_skipped\"\",\"\"outcome\"\":\"\"skipped\"\",\"\"lineno\"\":30,\"\"filename\"\":\"\"tests/test_example.py\"\",\"\"call\"\":{\"\"longrepr\"\":\"\"Skipped due to marker\"\"}}]}')",
+      "Bash(test_json='{\"\"tests\"\":[{\"\"nodeid\"\":\"\"tests/test_example.py::test_passing\"\",\"\"outcome\"\":\"\"passed\"\",\"\"lineno\"\":10,\"\"filename\"\":\"\"tests/test_example.py\"\",\"\"call\"\":{}}]}')"
     ]
   }
 }

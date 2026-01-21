@@ -6,6 +6,15 @@ version = "0.1.0"
 description = "Agentic Software Development Lifecycle System"
 requires-python = ">=3.11"
 
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "pytest>=7.0.0",
+    "pytest-json-report>=1.5.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.6.0",
+]
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 asyncio_mode = "auto"
