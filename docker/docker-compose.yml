@@ -1,0 +1,132 @@
+# aSDLC Docker Compose - Four Container Topology
+# See docs/System_Design.md Section 4.1 for architecture details
+
+services:
+  # Container 1: Orchestrator and Governance
+  # - Exclusive Git write access to protected branches
+  # - Runs Manager Agent and governance services
+  # - Consumes Redis Streams and dispatches work
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: docker/orchestrator/Dockerfile
+    container_name: asdlc-orchestrator
+    hostname: orchestrator
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=infrastructure
+      - REDIS_PORT=6379
+      - SERVICE_NAME=orchestrator
+      - SERVICE_PORT=8080
+      - GIT_WRITE_ACCESS=true
+    volumes:
+      - ../:/app/workspace:rw
+      - git-credentials:/app/.git-credentials:ro
+    depends_on:
+      infrastructure:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - asdlc-network
+
+  # Container 2: Agent Workers
+  # - Stateless worker pool running Claude Agent SDK queries
+  # - No protected branch write access
+  # - Read-only workspace access
+  workers:
+    build:
+      context: ..
+      dockerfile: docker/workers/Dockerfile
+    container_name: asdlc-workers
+    hostname: workers
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOST=infrastructure
+      - REDIS_PORT=6379
+      - SERVICE_NAME=workers
+      - SERVICE_PORT=8081
+      - GIT_WRITE_ACCESS=false
+    volumes:
+      - ../:/app/workspace:ro
+    depends_on:
+      infrastructure:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - asdlc-network
+
+  # Container 3: Infrastructure Services
+  # - Redis for event streams and task state caches
+  # - ChromaDB for KnowledgeStore prototype (future)
+  infrastructure:
+    build:
+      context: ..
+      dockerfile: docker/infrastructure/Dockerfile
+    container_name: asdlc-infrastructure
+    hostname: infrastructure
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - asdlc-network
+
+  # Container 4: HITL Web UI
+  # - Gate request viewer and evidence explorer
+  # - Approval pushes responses back to Redis Streams
+  hitl-ui:
+    build:
+      context: ..
+      dockerfile: docker/hitl-ui/Dockerfile
+    container_name: asdlc-hitl-ui
+    hostname: hitl-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_HOST=infrastructure
+      - REDIS_PORT=6379
+      - SERVICE_NAME=hitl-ui
+      - SERVICE_PORT=3000
+      - API_URL=http://orchestrator:8080
+    depends_on:
+      infrastructure:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - asdlc-network
+
+networks:
+  asdlc-network:
+    driver: bridge
+    name: asdlc-network
+
+volumes:
+  redis-data:
+    name: asdlc-redis-data
+  git-credentials:
+    name: asdlc-git-credentials
