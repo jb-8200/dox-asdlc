@@ -1,0 +1,65 @@
+# Default values for workers subchart
+
+enabled: true
+
+# HPA configuration
+minReplicas: 2
+maxReplicas: 10
+targetCPUUtilization: 70
+
+image:
+  repository: dox-asdlc/workers
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8081
+
+# Health probes
+livenessProbe:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment configuration
+env:
+  REDIS_URL: "redis://redis:6379"
+  KNOWLEDGE_STORE_URL: "http://knowledge-store:8000"
+  LOG_LEVEL: "INFO"
+  # Multi-tenancy settings
+  MULTI_TENANCY_ENABLED: "false"
+  DEFAULT_TENANT_ID: "default"
+  ALLOWED_TENANTS: "*"
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}

@@ -1,0 +1,100 @@
+# Default values for redis subchart
+
+# Enable/disable Redis deployment
+enabled: true
+
+# Number of replicas (single replica for prototype)
+replicas: 1
+
+# Redis image configuration
+image:
+  repository: redis
+  tag: "7.2-alpine"
+  pullPolicy: IfNotPresent
+
+# Resource configuration
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Persistence configuration
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+# Authentication configuration
+auth:
+  enabled: true
+  # Password is expected to be provided via parent chart secrets
+  existingSecret: ""
+  existingSecretPasswordKey: "redis-password"
+
+# Redis configuration
+config:
+  # Maximum memory limit
+  maxmemory: "256mb"
+  # Eviction policy when max memory is reached
+  maxmemoryPolicy: "volatile-lru"
+  # TCP keepalive
+  tcpKeepalive: 300
+
+# AOF persistence (append-only file)
+aof:
+  enabled: false
+  # fsync policy: always, everysec, no
+  appendfsync: "everysec"
+
+# RDB persistence (snapshots)
+rdb:
+  enabled: true
+  # Save rules: "seconds changes"
+  saveRules:
+    - "900 1"    # Save after 900 sec if at least 1 key changed
+    - "300 10"   # Save after 300 sec if at least 10 keys changed
+    - "60 10000" # Save after 60 sec if at least 10000 keys changed
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 6379
+
+# Liveness probe configuration
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe configuration
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 1
+  failureThreshold: 3
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 999
+  fsGroup: 999
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}

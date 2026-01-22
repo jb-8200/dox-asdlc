@@ -1,0 +1,53 @@
+{{- if .Values.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "redis.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+data:
+  redis.conf: |
+    # Redis configuration file
+
+    # Network
+    bind 0.0.0.0
+    port 6379
+    tcp-keepalive {{ .Values.config.tcpKeepalive }}
+
+    # Memory management
+    maxmemory {{ .Values.config.maxmemory }}
+    maxmemory-policy {{ .Values.config.maxmemoryPolicy }}
+
+    # Persistence directory
+    dir /data
+
+    {{- if .Values.rdb.enabled }}
+    # RDB persistence (snapshots)
+    {{- range .Values.rdb.saveRules }}
+    save {{ . }}
+    {{- end }}
+    dbfilename dump.rdb
+    {{- else }}
+    # RDB disabled
+    save ""
+    {{- end }}
+
+    {{- if .Values.aof.enabled }}
+    # AOF persistence
+    appendonly yes
+    appendfsync {{ .Values.aof.appendfsync }}
+    appendfilename "appendonly.aof"
+    {{- else }}
+    # AOF disabled
+    appendonly no
+    {{- end }}
+
+    # Logging
+    loglevel notice
+
+    # Disable dangerous commands in production
+    rename-command FLUSHALL ""
+    rename-command FLUSHDB ""
+    rename-command DEBUG ""
+{{- end }}

@@ -1,0 +1,24 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "dox-asdlc.namespace" . }}
+  labels:
+    {{- include "dox-asdlc.labels" . | nindent 4 }}
+{{- if .Values.namespace.resourceQuotas.enabled }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "dox-asdlc.fullname" . }}-quota
+  namespace: {{ include "dox-asdlc.namespace" . }}
+  labels:
+    {{- include "dox-asdlc.labels" . | nindent 4 }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.namespace.resourceQuotas.requests.cpu | quote }}
+    requests.memory: {{ .Values.namespace.resourceQuotas.requests.memory | quote }}
+    limits.cpu: {{ .Values.namespace.resourceQuotas.limits.cpu | quote }}
+    limits.memory: {{ .Values.namespace.resourceQuotas.limits.memory | quote }}
+{{- end }}
+{{- end }}

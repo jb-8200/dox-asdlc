@@ -1,0 +1,48 @@
+apiVersion: v2
+name: dox-asdlc
+description: A Helm chart for the aSDLC (Agentic Software Development Lifecycle) system
+type: application
+
+# Chart version follows semver
+version: 0.1.0
+
+# Application version deployed by this chart
+appVersion: "1.0.0"
+
+# Helm 3 minimum version requirement
+kubeVersion: ">=1.23.0"
+
+maintainers:
+  - name: aSDLC Team
+    email: team@example.com
+
+keywords:
+  - asdlc
+  - agents
+  - sdlc
+  - orchestration
+
+home: https://github.com/example/dox-asdlc
+
+# Subchart dependencies
+dependencies:
+  - name: redis
+    version: "0.1.0"
+    condition: redis.enabled
+    repository: "file://charts/redis"
+  - name: chromadb
+    version: "0.1.0"
+    condition: chromadb.enabled
+    repository: "file://charts/chromadb"
+  - name: orchestrator
+    version: "0.1.0"
+    condition: orchestrator.enabled
+    repository: "file://charts/orchestrator"
+  - name: workers
+    version: "0.1.0"
+    condition: workers.enabled
+    repository: "file://charts/workers"
+  - name: hitl-ui
+    version: "0.1.0"
+    condition: hitlUI.enabled
+    repository: "file://charts/hitl-ui"

@@ -1,0 +1,118 @@
+# Minikube development values for dox-asdlc
+# Override production defaults for local development
+
+global:
+  namespace: dox-asdlc
+  imagePullPolicy: IfNotPresent
+
+# Namespace configuration for development
+namespace:
+  create: true
+  resourceQuotas:
+    enabled: false
+
+# Development secrets (use placeholder values)
+# WARNING: These are development-only values. Never use in production.
+secrets:
+  redis:
+    create: true
+    password: "dev-redis-password"
+  git:
+    create: true
+    username: "dev-user"
+    token: "dev-token-placeholder"
+  apiKeys:
+    create: true
+    claudeApiKey: "dev-claude-api-key"
+
+# Redis development configuration
+redis:
+  enabled: true
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 500Mi
+    storageClass: "standard"  # minikube default
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  auth:
+    enabled: true
+  aof:
+    enabled: false  # Use RDB only for faster dev restarts
+
+# ChromaDB development configuration
+chromadb:
+  enabled: true
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: "standard"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Orchestrator development configuration
+orchestrator:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Workers development configuration
+workers:
+  enabled: true
+  minReplicas: 1  # Single replica for dev
+  maxReplicas: 3
+  targetCPUUtilization: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+
+# HITL-UI development configuration
+hitlUI:
+  enabled: true
+  replicas: 1
+  service:
+    type: NodePort
+    port: 3000
+    nodePort: 30000  # Fixed nodePort for easy access
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+# Multi-tenancy development configuration
+multiTenancy:
+  enabled: true
+  defaultTenant: "dev-tenant"
+  allowedTenants:
+    - "*"
+  tenantHeader: "X-Tenant-ID"
+
+# Shared environment variables (development overrides)
+sharedEnv:
+  MULTI_TENANCY_ENABLED: "true"
+  DEFAULT_TENANT_ID: "dev-tenant"
+  ALLOWED_TENANTS: "*"

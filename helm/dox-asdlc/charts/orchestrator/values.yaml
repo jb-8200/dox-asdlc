@@ -1,0 +1,69 @@
+# Default values for orchestrator subchart
+
+enabled: true
+
+replicas: 1
+
+image:
+  repository: dox-asdlc/orchestrator
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "200m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# Git credentials configuration
+gitCredentials:
+  # Name of the secret containing Git credentials
+  secretName: ""
+  # Mount path for credentials
+  mountPath: "/etc/git-credentials"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8080
+
+# Health probes
+livenessProbe:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment configuration
+env:
+  REDIS_URL: "redis://redis:6379"
+  KNOWLEDGE_STORE_URL: "http://knowledge-store:8000"
+  LOG_LEVEL: "INFO"
+  # Multi-tenancy settings
+  MULTI_TENANCY_ENABLED: "false"
+  DEFAULT_TENANT_ID: "default"
+  ALLOWED_TENANTS: "*"
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}

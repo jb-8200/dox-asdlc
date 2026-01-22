@@ -1,0 +1,154 @@
+# Default values for dox-asdlc umbrella chart
+# This is a YAML-formatted file.
+# Production-oriented defaults; override with values-minikube.yaml for development
+
+# Global settings applied to all subcharts
+global:
+  # Namespace for all resources (created by this chart)
+  namespace: dox-asdlc
+
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+
+  # Image pull secrets (if using private registry)
+  imagePullSecrets: []
+
+  # Common labels applied to all resources
+  labels: {}
+
+# Namespace configuration
+namespace:
+  # Whether to create the namespace (set false if namespace already exists)
+  create: true
+
+  # Resource quotas for the namespace (production values)
+  resourceQuotas:
+    enabled: false
+    requests:
+      cpu: "10"
+      memory: "20Gi"
+    limits:
+      cpu: "20"
+      memory: "40Gi"
+
+# Secrets configuration
+secrets:
+  # Redis authentication
+  redis:
+    # Set to false to use external secret management
+    create: true
+    # Password for Redis authentication (MUST be overridden in production)
+    # Use --set secrets.redis.password=<value> or external secret management
+    password: ""
+
+  # Git credentials for orchestrator
+  git:
+    # Set to false to use external secret management
+    create: true
+    # Git username (MUST be overridden)
+    username: ""
+    # Git personal access token (MUST be overridden)
+    token: ""
+
+  # API keys for external services
+  apiKeys:
+    create: true
+    # Claude API key (MUST be overridden)
+    claudeApiKey: ""
+
+# Redis subchart configuration
+redis:
+  enabled: true
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  auth:
+    enabled: true
+  aof:
+    enabled: true
+
+# ChromaDB subchart configuration (KnowledgeStore backend)
+chromadb:
+  enabled: true
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+# Orchestrator subchart configuration
+orchestrator:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  gitCredentials:
+    secretName: "dox-asdlc-git-credentials"
+    mountPath: "/etc/git-credentials"
+
+# Workers subchart configuration
+workers:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilization: 70
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# HITL-UI subchart configuration
+hitlUI:
+  enabled: true
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Multi-tenancy configuration
+multiTenancy:
+  enabled: false
+  defaultTenant: "default"
+  # Allowed tenants list (* for any)
+  allowedTenants:
+    - "*"
+  # HTTP header for tenant identification
+  tenantHeader: "X-Tenant-ID"
+
+# Shared environment variables (propagated to all services)
+sharedEnv:
+  # Multi-tenancy settings (will be templated based on multiTenancy values)
+  MULTI_TENANCY_ENABLED: "false"
+  DEFAULT_TENANT_ID: "default"
+  ALLOWED_TENANTS: "*"
