@@ -3,8 +3,8 @@
 ## Progress
 
 - Started: 2026-01-23
-- Tasks Complete: 3/68
-- Percentage: 4%
+- Tasks Complete: 4/68
+- Percentage: 6%
 - Status: IN_PROGRESS
 - Blockers: None
 
@@ -51,14 +51,21 @@
   - Full integration with eventStore for connection state
   - Proper TypeScript types (EventHandler type defined)
 
-### TASK-004: Create API client modules
-- [ ] Create `api/runs.ts` (list runs, get run detail)
-- [ ] Create `api/studio.ts` (chat, context query)
-- [ ] Create `api/artifacts.ts` (list, detail, history, provenance)
-- [ ] Create `api/websocket.ts` (event stream connection)
-- [ ] Extend `api/types.ts` with new interfaces
+### TASK-004: Create API client modules ✓
+- [x] Create `api/runs.ts` (list runs, get run detail, KPIs, workflow graph, git states)
+- [x] Create `api/studio.ts` (chat, context query, outline, PRD preview)
+- [x] Create `api/artifacts.ts` (list, detail, history, provenance, spec index)
+- [x] Create `api/websocket.ts` (event stream connection wrapper with EventTypes)
+- [x] Extend `api/types.ts` with 50+ new interfaces/types
 - **Estimate:** 1.5h
-- **Tests:** Mock API calls return expected data structures
+- **Tests:** 42 tests passed (runs: 9, studio: 9, artifacts: 13, websocket: 11)
+- **Completed:** 2026-01-23
+- **Implementation Notes:**
+  - Extended types.ts with Agent Cockpit types (runs, KPIs, workflow, git)
+  - Extended types.ts with Discovery Studio types (chat, outline, context)
+  - Extended types.ts with Artifact Management types (detail, history, provenance)
+  - API modules wrap axios client with typed responses
+  - WebSocket API wrapper provides convenient interface with EventTypes constants
 
 ### TASK-005: Update layout components
 - [ ] Update `Sidebar.tsx` with new navigation items
