@@ -107,7 +107,35 @@ check_prerequisites() {
         exit 1
     fi
 
+    # Check if custom images exist (warn if missing)
+    check_custom_images
+
     log "Prerequisites met."
+}
+
+# Check if custom Docker images are available
+check_custom_images() {
+    local missing_images=()
+    local images=("dox-asdlc/orchestrator" "dox-asdlc/workers" "dox-asdlc/hitl-ui")
+
+    for img in "${images[@]}"; do
+        if ! docker image inspect "$img:latest" &> /dev/null; then
+            missing_images+=("$img")
+        fi
+    done
+
+    if [ ${#missing_images[@]} -gt 0 ]; then
+        echo ""
+        log "WARNING: Custom images not found locally:"
+        for img in "${missing_images[@]}"; do
+            echo "    - $img:latest"
+        done
+        echo ""
+        echo "  Build images first: ./scripts/build-images.sh --minikube"
+        echo ""
+        echo "  Continuing deployment (images may be pulled from registry if available)..."
+        echo ""
+    fi
 }
 
 # Detect environment and select values file

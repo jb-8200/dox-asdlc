@@ -35,8 +35,13 @@ docker compose -f docker/docker-compose.yml up -d
 **Kubernetes Development (Minikube):**
 
 ```bash
-# Start local cluster and deploy
+# Start local cluster
 ./scripts/k8s/start-minikube.sh
+
+# Build and load images into minikube
+./scripts/build-images.sh --minikube
+
+# Deploy via Helm
 ./scripts/k8s/deploy.sh
 
 # Verify
