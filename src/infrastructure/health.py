@@ -139,14 +139,62 @@ class HealthChecker:
                 details={"error": str(e)},
             )
 
+    async def check_knowledge_store_dependency(self) -> DependencyHealth:
+        """Check KnowledgeStore dependency health.
+
+        Returns:
+            DependencyHealth: KnowledgeStore health status with latency.
+        """
+        start_time = asyncio.get_event_loop().time()
+
+        try:
+            from src.infrastructure.knowledge_store.factory import (
+                get_knowledge_store,
+            )
+
+            store = get_knowledge_store()
+            health = await store.health_check()
+            latency_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+
+            if health.get("status") == "healthy":
+                return DependencyHealth(
+                    name="knowledge_store",
+                    status=HealthStatus.HEALTHY,
+                    latency_ms=round(latency_ms, 2),
+                    details={
+                        "backend": health.get("backend"),
+                        "host": health.get("host"),
+                        "port": health.get("port"),
+                        "collection": health.get("collection"),
+                    },
+                )
+            else:
+                return DependencyHealth(
+                    name="knowledge_store",
+                    status=HealthStatus.UNHEALTHY,
+                    latency_ms=round(latency_ms, 2),
+                    details={"error": health.get("error", "Unknown error")},
+                )
+        except Exception as e:
+            latency_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+            logger.warning(f"KnowledgeStore health check failed: {e}")
+            return DependencyHealth(
+                name="knowledge_store",
+                status=HealthStatus.UNHEALTHY,
+                latency_ms=round(latency_ms, 2),
+                details={"error": str(e)},
+            )
+
     async def check_health(
         self,
         include_dependencies: bool = True,
+        include_knowledge_store: bool = False,
     ) -> HealthResponse:
         """Perform full health check.
 
         Args:
             include_dependencies: Whether to check dependency health.
+            include_knowledge_store: Whether to include KnowledgeStore check.
 
         Returns:
             HealthResponse: Complete health status.
@@ -157,6 +205,11 @@ class HealthChecker:
             # Check Redis
             redis_health = await self.check_redis_dependency()
             dependencies.append(redis_health)
+
+            # Check KnowledgeStore if requested
+            if include_knowledge_store:
+                ks_health = await self.check_knowledge_store_dependency()
+                dependencies.append(ks_health)
 
         # Determine overall status based on dependencies
         overall_status = HealthStatus.HEALTHY
