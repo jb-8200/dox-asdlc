@@ -1,6 +1,42 @@
 # Parallel CLI Coordination Rules
 
-These rules govern how multiple Claude CLI instances work simultaneously on this project.
+These rules govern how the three Claude CLI instances work simultaneously on this project.
+
+---
+
+## 3-CLI Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│  Backend-CLI    │     │  Frontend-CLI   │
+│  (agent/)       │     │  (ui/)          │
+│                 │     │                 │
+│  - Workers      │     │  - HITL UI      │
+│  - Orchestrator │     │  - Components   │
+│  - Infra        │     │  - Frontend     │
+└────────┬────────┘     └────────┬────────┘
+         │                       │
+         │  READY_FOR_REVIEW     │
+         └───────────┬───────────┘
+                     ▼
+         ┌─────────────────────┐
+         │  Orchestrator-CLI   │
+         │  (main)             │
+         │                     │
+         │  - Code Review      │
+         │  - E2E Tests        │
+         │  - Contract Valid.  │
+         │  - Merge to main    │
+         └─────────────────────┘
+```
+
+### Instance Roles
+
+| Instance | ID | Branch Prefix | Primary Responsibility |
+|----------|-----|---------------|------------------------|
+| Backend-CLI | `backend` | `agent/` | Workers, orchestrator, infrastructure |
+| Frontend-CLI | `frontend` | `ui/` | HITL Web UI, frontend components |
+| Orchestrator-CLI | `orchestrator` | (none) | Review, E2E tests, merge to main |
 
 ---
 
@@ -24,9 +60,9 @@ The session start check verifies:
 ```bash
 # 1. Verify identity
 echo "Instance: $CLAUDE_INSTANCE_ID, Branch Prefix: $CLAUDE_BRANCH_PREFIX"
-[ -z "$CLAUDE_INSTANCE_ID" ] && echo "ERROR: Run 'source scripts/cli-identity.sh <ui|agent>' first"
+[ -z "$CLAUDE_INSTANCE_ID" ] && echo "ERROR: Run 'source scripts/cli-identity.sh <backend|frontend|orchestrator>' first"
 
-# 2. Verify branch
+# 2. Verify branch (feature CLIs only)
 git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}" || echo "ERROR: Wrong branch!"
 
 # 3. Check coordination messages
@@ -48,7 +84,7 @@ echo $CLAUDE_INSTANCE_ID
 
 If not set, run:
 ```bash
-source scripts/cli-identity.sh <ui|agent>
+source scripts/cli-identity.sh <backend|frontend|orchestrator>
 ```
 
 Your identity determines which files you can modify and which branches you can commit to.
@@ -59,11 +95,12 @@ Your identity determines which files you can modify and which branches you can c
 
 | Instance | Branch Prefix | Example |
 |----------|--------------|---------|
-| UI-CLI | `ui/` | `ui/P05-F01-hitl-ui` |
-| Agent-CLI | `agent/` | `agent/P03-F01-worker-pool` |
+| Backend-CLI | `agent/` | `agent/P03-F01-worker-pool` |
+| Frontend-CLI | `ui/` | `ui/P05-F01-hitl-ui` |
+| Orchestrator-CLI | (none) | Works directly on `main` |
 
-**NEVER commit directly to:**
-- `main` branch
+**Feature CLIs (Backend, Frontend) NEVER commit directly to:**
+- `main` branch (only Orchestrator can)
 - Another instance's branch prefix
 - `contracts/*` without coordination
 
@@ -74,37 +111,110 @@ git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}"
 
 ## Rule 3: File Boundaries
 
-**UI-CLI (CLAUDE_INSTANCE_ID=ui):**
-- CAN modify: `src/hitl_ui/`, `docker/hitl-ui/`, `tests/unit/hitl_ui/`
-- CAN read: `contracts/`, `src/core/`, `docs/`
-- CANNOT touch: `src/workers/`, `src/orchestrator/`, `src/infrastructure/`
-
-**Agent-CLI (CLAUDE_INSTANCE_ID=agent):**
+**Backend-CLI (CLAUDE_INSTANCE_ID=backend):**
 - CAN modify: `src/workers/`, `src/orchestrator/`, `src/infrastructure/`, `docker/workers/`, `docker/orchestrator/`
+- CAN modify: `.workitems/P01-*`, `.workitems/P02-*`, `.workitems/P03-*`, `.workitems/P06-*` (planning & tasks)
 - CAN read: `contracts/`, `src/core/`, `docs/`
-- CANNOT touch: `src/hitl_ui/`, `docker/hitl-ui/`
+- CANNOT touch: `src/hitl_ui/`, `docker/hitl-ui/`, `main` branch, meta files
 
-**Shared files (require coordination):**
-- `contracts/*` — Use contract change protocol
+**Frontend-CLI (CLAUDE_INSTANCE_ID=frontend):**
+- CAN modify: `src/hitl_ui/`, `docker/hitl-ui/`, `tests/unit/hitl_ui/`
+- CAN modify: `.workitems/P05-*` (planning & tasks)
+- CAN read: `contracts/`, `src/core/`, `docs/`
+- CANNOT touch: `src/workers/`, `src/orchestrator/`, `src/infrastructure/`, `main` branch, meta files
+
+**Orchestrator-CLI (CLAUDE_INSTANCE_ID=orchestrator) — Master Agent:**
+- EXCLUSIVE ownership of meta files (see below)
+- CAN read: All files (for review purposes)
+- CAN modify: `main` branch (via merge)
+- CAN manage: All project configuration and documentation
+- Primary role: Review, merge, and maintain project integrity
+
+**Meta Files (Orchestrator EXCLUSIVE ownership):**
+
+| Category | Files |
+|----------|-------|
+| Project Config | `CLAUDE.md`, `README.md` |
+| Rules | `.claude/rules/**` |
+| Skills | `.claude/skills/**` |
+| Documentation | `docs/**` |
+| Contracts | `contracts/**` |
+| Coordination | `.claude/coordination/**` |
+
+**Note:** `.workitems/` is NOT in the exclusive list — feature CLIs manage their own planning artifacts.
+
+**Feature CLIs CANNOT modify other meta files directly.** To request changes:
+```bash
+./scripts/coordination/publish-message.sh META_CHANGE_REQUEST "<file>" "<description>" --to orchestrator
+```
+
+**Shared source files (require coordination):**
 - `src/core/interfaces.py` — Coordinate via messages
 - `src/core/events.py` — Coordinate via messages
 
-## Rule 4: Contract Changes
+## Rule 4: Feature Development Workflow
+
+**For Backend-CLI and Frontend-CLI:**
+
+1. **Start Session:**
+   ```bash
+   source scripts/cli-identity.sh backend  # or frontend
+   ./scripts/check-compliance.sh --session-start
+   ```
+
+2. **Work on Feature Branch:**
+   ```bash
+   git checkout -b agent/P03-F01-feature-name  # or ui/...
+   # Develop feature with TDD
+   # Run local tests: ./tools/test.sh
+   # Run linter: ./tools/lint.sh
+   ```
+
+3. **Request Review:**
+   ```bash
+   # When feature complete
+   ./scripts/coordination/publish-message.sh READY_FOR_REVIEW "agent/P03-F01-feature-name" "Feature complete" --to orchestrator
+   ```
+
+4. **Wait for Response:**
+   - `REVIEW_COMPLETE` → Feature merged to main
+   - `REVIEW_FAILED` → Fix issues and re-submit
+
+## Rule 5: Contract Changes (Orchestrator-Mediated)
 
 **Any change to `contracts/` MUST follow this protocol:**
 
-1. Create proposed change: `contracts/proposed/<change-description>.json`
-2. Publish coordination message:
+1. **Proposer creates change:**
    ```bash
-   ./scripts/coordination/publish-message.sh CONTRACT_CHANGE_PROPOSED <contract_name> "<description>"
+   # Create proposed change
+   cp contracts/current/events.json contracts/proposed/events-v1.1.0.json
+   # Edit the proposed file
+   ./scripts/coordination/publish-message.sh CONTRACT_CHANGE_PROPOSED events "Add new field X" --to orchestrator
    ```
-3. Wait for acknowledgment from consumer instance
-4. After ACK received, move to versioned location and update symlinks
-5. Update `contracts/CHANGELOG.md`
 
-**NEVER modify `contracts/current/*` or `contracts/versions/*` without ACK.**
+2. **Orchestrator reviews and notifies:**
+   ```bash
+   # Orchestrator sends to consumer CLI
+   ./scripts/coordination/publish-message.sh CONTRACT_REVIEW_NEEDED events "Backend proposes adding field X" --to frontend
+   ```
 
-## Rule 5: Coordination Messages
+3. **Consumer provides feedback:**
+   ```bash
+   ./scripts/coordination/publish-message.sh CONTRACT_FEEDBACK events "Approved - compatible with UI" --to orchestrator
+   ```
+
+4. **Orchestrator approves:**
+   ```bash
+   # Move to versions, update symlinks
+   mv contracts/proposed/events-v1.1.0.json contracts/versions/v1.1.0/events.json
+   ln -sf ../versions/v1.1.0/events.json contracts/current/events.json
+   # Update CHANGELOG.md
+   ./scripts/coordination/publish-message.sh CONTRACT_APPROVED events "v1.1.0 approved" --to all
+   ```
+
+**NEVER modify `contracts/current/*` or `contracts/versions/*` without orchestrator approval.**
+
+## Rule 6: Coordination Messages
 
 **Check for messages at the start of each work session:**
 ```bash
@@ -116,14 +226,24 @@ git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}"
 ./scripts/coordination/ack-message.sh <message-id>
 ```
 
-**Message types:**
-- `CONTRACT_CHANGE_PROPOSED` — New contract version proposed
-- `CONTRACT_CHANGE_ACK` — Consumer acknowledges contract change
-- `INTERFACE_UPDATE` — Shared interface change notification
-- `BLOCKING_ISSUE` — Work blocked, needs coordination
-- `READY_FOR_MERGE` — Branch ready for human merge
+**Message Types:**
 
-## Rule 6: Status Updates
+| Type | Direction | Purpose |
+|------|-----------|---------|
+| `READY_FOR_REVIEW` | Feature → Orchestrator | Request branch review and merge |
+| `REVIEW_COMPLETE` | Orchestrator → Feature | Review passed, merged to main |
+| `REVIEW_FAILED` | Orchestrator → Feature | Review failed, lists issues |
+| `CONTRACT_CHANGE_PROPOSED` | Feature → Orchestrator | Propose contract change |
+| `CONTRACT_REVIEW_NEEDED` | Orchestrator → Consumer | Request contract feedback |
+| `CONTRACT_FEEDBACK` | Consumer → Orchestrator | Provide contract feedback |
+| `CONTRACT_APPROVED` | Orchestrator → All | Contract change approved |
+| `CONTRACT_REJECTED` | Orchestrator → Proposer | Contract change rejected |
+| `META_CHANGE_REQUEST` | Feature → Orchestrator | Request meta file change |
+| `META_CHANGE_COMPLETE` | Orchestrator → Feature | Meta file change completed |
+| `INTERFACE_UPDATE` | Any → Any | Shared interface notification |
+| `BLOCKING_ISSUE` | Any → Any | Work blocked, needs help |
+
+## Rule 7: Status Updates
 
 **Update your status when:**
 - Starting work on a new task
@@ -135,23 +255,30 @@ git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}"
 
 The status is automatically updated by `cli-identity.sh` when activating/deactivating.
 
-## Rule 7: Merge Preparation
+## Rule 8: Review Process (Feature CLIs)
 
-**Before requesting a merge:**
+**Before requesting review, ensure:**
 
-1. Ensure all tests pass: `./tools/test.sh`
-2. Ensure linter passes: `./tools/lint.sh`
-3. Check for unresolved coordination messages
-4. Verify contract compatibility with other branch
-5. Run merge helper:
-   ```bash
-   ./scripts/merge-helper.sh <your-branch> <other-branch>
-   ```
-6. Publish READY_FOR_MERGE message
+1. All tests pass: `./tools/test.sh`
+2. Linter passes: `./tools/lint.sh`
+3. Planning artifacts complete: `tasks.md` shows 100%
+4. No unresolved coordination messages
+5. Branch is up to date with main
 
-## Rule 8: Mock-First Development (UI-CLI)
+**Request review:**
+```bash
+./scripts/coordination/publish-message.sh READY_FOR_REVIEW "<branch>" "Feature complete" --to orchestrator
+```
 
-**UI-CLI MUST create mocks that match contract schemas:**
+**After receiving REVIEW_FAILED:**
+1. Read the failure reasons in the message
+2. Fix all listed issues
+3. Run tests again
+4. Re-submit review request
+
+## Rule 9: Mock-First Development (Frontend-CLI)
+
+**Frontend-CLI MUST create mocks that match contract schemas:**
 
 Location: `src/hitl_ui/api/mocks/`
 
@@ -164,23 +291,23 @@ def mock_pending_gates() -> list[GateRequest]:
     pass
 ```
 
-When Agent-CLI delivers real implementation, mocks are swapped seamlessly.
+When Backend-CLI delivers real implementation, mocks are swapped seamlessly.
 
-## Rule 9: Conflict Prevention
+## Rule 10: Conflict Prevention
 
 **If you need to modify a shared file:**
 
 1. Check `.claude/coordination/locks/` for existing lock
 2. Create lock file: `echo "$CLAUDE_INSTANCE_ID" > .claude/coordination/locks/<filename>.lock`
-3. Publish message notifying other instance
+3. Publish message notifying other instances
 4. Make changes
 5. Commit
 6. Remove lock file
 7. Publish unlock message
 
-**If a lock exists, wait or coordinate with the other instance.**
+**If a lock exists, wait or coordinate with the locking instance.**
 
-## Rule 10: Session End Protocol
+## Rule 11: Session End Protocol
 
 **Before ending your session:**
 
@@ -192,3 +319,37 @@ When Agent-CLI delivers real implementation, mocks are swapped seamlessly.
    ```
 4. Check for any unanswered coordination messages
 5. Leave clear notes in `tasks.md` for resumption
+
+---
+
+## Quick Reference: Common Workflows
+
+### Backend-CLI: Complete a Feature
+```bash
+source scripts/cli-identity.sh backend
+./scripts/check-compliance.sh --session-start
+# ... develop feature ...
+./tools/test.sh && ./tools/lint.sh
+./scripts/coordination/publish-message.sh READY_FOR_REVIEW "agent/P03-F01" "Complete"
+# Wait for REVIEW_COMPLETE or REVIEW_FAILED
+```
+
+### Frontend-CLI: Complete a Feature
+```bash
+source scripts/cli-identity.sh frontend
+./scripts/check-compliance.sh --session-start
+# ... develop feature ...
+./tools/test.sh && ./tools/lint.sh
+./scripts/coordination/publish-message.sh READY_FOR_REVIEW "ui/P05-F01" "Complete"
+# Wait for REVIEW_COMPLETE or REVIEW_FAILED
+```
+
+### Orchestrator-CLI: Review and Merge
+```bash
+source scripts/cli-identity.sh orchestrator
+./scripts/coordination/check-messages.sh --reviews
+./scripts/orchestrator/review-branch.sh agent/P03-F01
+# If review passes:
+./scripts/orchestrator/merge-branch.sh agent/P03-F01
+./scripts/coordination/publish-message.sh REVIEW_COMPLETE "agent/P03-F01" "Merged as abc123" --to backend
+```

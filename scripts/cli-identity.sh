@@ -15,11 +15,20 @@ COORDINATION_DIR="$PROJECT_ROOT/.claude/coordination"
 STATUS_FILE="$COORDINATION_DIR/status.json"
 
 usage() {
-    echo "Usage: source scripts/cli-identity.sh <ui|agent>"
+    echo "Usage: source scripts/cli-identity.sh <backend|frontend|orchestrator>"
     echo ""
     echo "Instances:"
-    echo "  ui     - HITL Web UI development (P05-F01)"
-    echo "  agent  - Agent Workers development (P03)"
+    echo "  backend      - Backend development (workers, orchestrator, infrastructure)"
+    echo "  frontend     - Frontend development (HITL Web UI)"
+    echo "  orchestrator - Master agent: review, merge, meta files, docs"
+    echo ""
+    echo "Legacy aliases (deprecated):"
+    echo "  agent  -> backend"
+    echo "  ui     -> frontend"
+    echo ""
+    echo "The orchestrator (master agent) has exclusive control over:"
+    echo "  - CLAUDE.md, README.md, .claude/rules/, .claude/skills/"
+    echo "  - docs/, .workitems/, contracts/"
     echo ""
     echo "This script must be sourced, not executed directly."
 }
@@ -31,7 +40,7 @@ update_status() {
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     if [[ ! -f "$STATUS_FILE" ]]; then
-        echo '{"ui":{"active":false},"agent":{"active":false}}' > "$STATUS_FILE"
+        echo '{"backend":{"active":false},"frontend":{"active":false},"orchestrator":{"active":false}}' > "$STATUS_FILE"
     fi
 
     # Update status using Python for reliable JSON manipulation
@@ -59,29 +68,57 @@ main() {
     fi
 
     case "$instance" in
-        ui)
-            git config user.name "Claude UI-Agent"
-            git config user.email "claude-ui@asdlc.local"
-            export CLAUDE_INSTANCE_ID="ui"
-            export CLAUDE_ALLOWED_PATHS="src/hitl_ui,docker/hitl-ui,contracts"
+        frontend|ui)
+            git config user.name "Claude Frontend"
+            git config user.email "claude-frontend@asdlc.local"
+            export CLAUDE_INSTANCE_ID="frontend"
+            export CLAUDE_ALLOWED_PATHS="src/hitl_ui,docker/hitl-ui,.workitems/P05-*"
             export CLAUDE_BRANCH_PREFIX="ui/"
-            echo "Git identity set: Claude UI-Agent <claude-ui@asdlc.local>"
-            echo "Instance ID: ui"
-            echo "Allowed paths: src/hitl_ui, docker/hitl-ui, contracts"
+            export CLAUDE_CAN_MERGE="false"
+            echo "Git identity set: Claude Frontend <claude-frontend@asdlc.local>"
+            echo "Instance ID: frontend"
+            echo "Allowed paths: src/hitl_ui, docker/hitl-ui, .workitems/P05-*"
             echo "Branch prefix: ui/"
-            update_status "ui" "true"
+            echo "Can merge to main: No"
+            update_status "frontend" "true"
             ;;
-        agent)
-            git config user.name "Claude Agent-Worker"
-            git config user.email "claude-agent@asdlc.local"
-            export CLAUDE_INSTANCE_ID="agent"
-            export CLAUDE_ALLOWED_PATHS="src/workers,src/orchestrator,contracts"
+        backend|agent)
+            git config user.name "Claude Backend"
+            git config user.email "claude-backend@asdlc.local"
+            export CLAUDE_INSTANCE_ID="backend"
+            export CLAUDE_ALLOWED_PATHS="src/workers,src/orchestrator,src/infrastructure,docker/workers,docker/orchestrator,.workitems/P01-*,.workitems/P02-*,.workitems/P03-*,.workitems/P06-*"
             export CLAUDE_BRANCH_PREFIX="agent/"
-            echo "Git identity set: Claude Agent-Worker <claude-agent@asdlc.local>"
-            echo "Instance ID: agent"
-            echo "Allowed paths: src/workers, src/orchestrator, contracts"
+            export CLAUDE_CAN_MERGE="false"
+            echo "Git identity set: Claude Backend <claude-backend@asdlc.local>"
+            echo "Instance ID: backend"
+            echo "Allowed paths: src/workers, src/orchestrator, src/infrastructure, .workitems/P01-P03,P06-*"
             echo "Branch prefix: agent/"
-            update_status "agent" "true"
+            echo "Can merge to main: No"
+            update_status "backend" "true"
+            ;;
+        orchestrator)
+            # Master agent uses Claude's default git identity
+            # Unset any project-specific git config to use global/default
+            git config --unset user.name 2>/dev/null || true
+            git config --unset user.email 2>/dev/null || true
+            export CLAUDE_INSTANCE_ID="orchestrator"
+            export CLAUDE_ALLOWED_PATHS="*"
+            export CLAUDE_BRANCH_PREFIX=""
+            export CLAUDE_CAN_MERGE="true"
+            export CLAUDE_CAN_MODIFY_META="true"
+            echo "Git identity: (using Claude default)"
+            echo "Instance ID: orchestrator (master agent)"
+            echo "Exclusive ownership:"
+            echo "  - CLAUDE.md, README.md"
+            echo "  - .claude/rules/, .claude/skills/"
+            echo "  - docs/ (SDD, TDD documentation)"
+            echo "  - contracts/"
+            echo "Shared with feature CLIs:"
+            echo "  - .workitems/ (feature CLIs manage their own planning)"
+            echo "Branch: main (exclusive write access)"
+            echo "Can merge to main: Yes"
+            echo "Can modify project meta: Yes"
+            update_status "orchestrator" "true"
             ;;
         deactivate)
             # Deactivate the current instance
@@ -91,6 +128,8 @@ main() {
                 unset CLAUDE_INSTANCE_ID
                 unset CLAUDE_ALLOWED_PATHS
                 unset CLAUDE_BRANCH_PREFIX
+                unset CLAUDE_CAN_MERGE
+                unset CLAUDE_CAN_MODIFY_META
                 echo "Deactivated instance: $current_id"
             else
                 echo "No active instance to deactivate"
@@ -110,7 +149,7 @@ main() {
 # Check if script is being sourced
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "Warning: This script should be sourced, not executed."
-    echo "Use: source scripts/cli-identity.sh <ui|agent>"
+    echo "Use: source scripts/cli-identity.sh <backend|frontend|orchestrator>"
     exit 1
 fi
 

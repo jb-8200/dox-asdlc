@@ -7,9 +7,18 @@
 #   CONTRACT_CHANGE_PROPOSED  - Proposing a contract change
 #   CONTRACT_CHANGE_ACK       - Acknowledging a contract change
 #   CONTRACT_PUBLISHED        - Contract change has been published
+#   CONTRACT_REVIEW_NEEDED    - Orchestrator requests contract feedback
+#   CONTRACT_FEEDBACK         - CLI provides feedback on contract
+#   CONTRACT_APPROVED         - Orchestrator approves contract change
+#   CONTRACT_REJECTED         - Orchestrator rejects contract change
 #   INTERFACE_UPDATE          - Shared interface change notification
 #   BLOCKING_ISSUE            - Work blocked, needs coordination
-#   READY_FOR_MERGE           - Branch ready for human merge
+#   READY_FOR_REVIEW          - Feature branch ready for orchestrator review
+#   REVIEW_COMPLETE           - Orchestrator: review passed, merged to main
+#   REVIEW_FAILED             - Orchestrator: review failed, needs fixes
+#   META_CHANGE_REQUEST       - Feature CLI requests meta file change
+#   META_CHANGE_COMPLETE      - Orchestrator: meta file change completed
+#   READY_FOR_MERGE           - (Deprecated) Branch ready for human merge
 #   GENERAL                   - General coordination message
 
 set -euo pipefail
@@ -21,7 +30,24 @@ MESSAGES_DIR="$COORDINATION_DIR/messages"
 PENDING_DIR="$COORDINATION_DIR/pending-acks"
 
 # Valid message types
-VALID_TYPES=("CONTRACT_CHANGE_PROPOSED" "CONTRACT_CHANGE_ACK" "CONTRACT_PUBLISHED" "INTERFACE_UPDATE" "BLOCKING_ISSUE" "READY_FOR_MERGE" "GENERAL")
+VALID_TYPES=(
+    "CONTRACT_CHANGE_PROPOSED"
+    "CONTRACT_CHANGE_ACK"
+    "CONTRACT_PUBLISHED"
+    "CONTRACT_REVIEW_NEEDED"
+    "CONTRACT_FEEDBACK"
+    "CONTRACT_APPROVED"
+    "CONTRACT_REJECTED"
+    "INTERFACE_UPDATE"
+    "BLOCKING_ISSUE"
+    "READY_FOR_REVIEW"
+    "REVIEW_COMPLETE"
+    "REVIEW_FAILED"
+    "META_CHANGE_REQUEST"
+    "META_CHANGE_COMPLETE"
+    "READY_FOR_MERGE"
+    "GENERAL"
+)
 
 usage() {
     echo "Usage: $0 <type> <subject> <description> [--to <instance>] [--no-ack]"
@@ -42,8 +68,10 @@ usage() {
     echo ""
     echo "Examples:"
     echo "  $0 CONTRACT_CHANGE_PROPOSED hitl_api 'Add metrics endpoint'"
-    echo "  $0 BLOCKING_ISSUE dependencies 'Missing redis dependency' --to agent"
-    echo "  $0 READY_FOR_MERGE branch 'P05-F01 ready for merge' --no-ack"
+    echo "  $0 BLOCKING_ISSUE dependencies 'Missing redis dependency' --to backend"
+    echo "  $0 READY_FOR_REVIEW agent/P03-F01 'Feature complete, ready for review' --to orchestrator"
+    echo "  $0 REVIEW_COMPLETE agent/P03-F01 'Merged as abc123' --to backend"
+    echo "  $0 REVIEW_FAILED ui/P05-F01 'E2E tests failed' --to frontend"
 }
 
 generate_uuid() {
@@ -122,13 +150,34 @@ main() {
 
     # Determine target if not specified
     if [[ -z "$target" ]]; then
-        if [[ "$sender" == "ui" ]]; then
-            target="agent"
-        elif [[ "$sender" == "agent" ]]; then
-            target="ui"
-        else
-            target="all"
-        fi
+        case "$type" in
+            READY_FOR_REVIEW|CONTRACT_CHANGE_PROPOSED|META_CHANGE_REQUEST)
+                # Review requests, contract proposals, and meta change requests go to orchestrator
+                target="orchestrator"
+                ;;
+            REVIEW_COMPLETE|REVIEW_FAILED|META_CHANGE_COMPLETE)
+                # Review and meta change responses should have explicit target
+                echo "Warning: Response messages should specify --to <instance>"
+                target="all"
+                ;;
+            CONTRACT_REVIEW_NEEDED|CONTRACT_APPROVED|CONTRACT_REJECTED)
+                # Contract orchestration messages should have explicit target
+                echo "Warning: Contract orchestration messages should specify --to <instance>"
+                target="all"
+                ;;
+            *)
+                # Default: send to the other feature CLI (legacy behavior)
+                if [[ "$sender" == "frontend" ]]; then
+                    target="backend"
+                elif [[ "$sender" == "backend" ]]; then
+                    target="frontend"
+                elif [[ "$sender" == "orchestrator" ]]; then
+                    target="all"
+                else
+                    target="all"
+                fi
+                ;;
+        esac
     fi
 
     # Generate message ID and timestamp
