@@ -185,6 +185,7 @@ When resuming work, check:
 2. Task progress in the active `tasks.md`
 3. Any blocked items or dependencies
 4. Last commit message for context
+5. `git status` for uncommitted complete work
 
 ## Related Documentation
 

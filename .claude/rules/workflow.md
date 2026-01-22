@@ -42,7 +42,12 @@ A feature is complete only when ALL of the following pass:
 
 ## Rule 4: Commit Protocol
 
-**Commit only when feature is 100% complete.**
+**Commit IMMEDIATELY when a feature reaches 100% completion.**
+
+Do not:
+- Batch multiple completed features into one commit
+- End a session with uncommitted complete work
+- Wait for user to request a commit
 
 Commit message format:
 ```
@@ -98,3 +103,14 @@ If tests fail after a code change:
 5. Only continue when all tests pass
 
 If stuck for more than 3 attempts, escalate by documenting the issue and seeking review.
+
+## Rule 9: Session Hygiene
+
+Before ending any session or switching to a different task:
+
+1. Run `git status` to check for uncommitted changes
+2. For each uncommitted change:
+   - If feature complete → commit immediately
+   - If feature incomplete → document status in tasks.md
+3. Never leave completed features uncommitted
+4. Infrastructure changes (docker-compose, requirements.txt) should be committed with their associated feature, not batched separately
