@@ -25,12 +25,15 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --all        Show all messages, not just for current instance"
-    echo "  --pending    Show only messages pending acknowledgment"
-    echo "  --from <id>  Filter by sender instance (ui or agent)"
-    echo "  --recent     Show only messages from last 24 hours (default)"
-    echo "  --week       Show messages from last 7 days"
-    echo "  -h, --help   Show this help"
+    echo "  --all           Show all messages, not just for current instance"
+    echo "  --pending       Show only messages pending acknowledgment"
+    echo "  --from <id>     Filter by sender instance (backend, frontend, orchestrator)"
+    echo "  --type <type>   Filter by message type (e.g., READY_FOR_REVIEW)"
+    echo "  --reviews       Show only review-related messages"
+    echo "  --contracts     Show only contract-related messages"
+    echo "  --recent        Show only messages from last 24 hours (default)"
+    echo "  --week          Show messages from last 7 days"
+    echo "  -h, --help      Show this help"
     echo ""
     echo "Without options, shows unacknowledged messages for the current instance."
 }
@@ -54,14 +57,17 @@ format_message() {
     # Color code by type
     local type_color="$BLUE"
     case "$type" in
-        CONTRACT_CHANGE_PROPOSED|INTERFACE_UPDATE)
+        CONTRACT_CHANGE_PROPOSED|CONTRACT_REVIEW_NEEDED|INTERFACE_UPDATE)
             type_color="$YELLOW"
             ;;
-        BLOCKING_ISSUE)
+        BLOCKING_ISSUE|REVIEW_FAILED|CONTRACT_REJECTED)
             type_color="$RED"
             ;;
-        READY_FOR_MERGE|CONTRACT_PUBLISHED)
+        READY_FOR_MERGE|CONTRACT_PUBLISHED|REVIEW_COMPLETE|CONTRACT_APPROVED)
             type_color="$GREEN"
+            ;;
+        READY_FOR_REVIEW|CONTRACT_FEEDBACK)
+            type_color="$CYAN"
             ;;
     esac
 
@@ -88,6 +94,9 @@ main() {
     local show_all=false
     local pending_only=false
     local filter_from=""
+    local filter_type=""
+    local filter_reviews=false
+    local filter_contracts=false
     local time_filter="-mtime -1"  # Default: last 24 hours
 
     # Parse arguments
@@ -104,6 +113,18 @@ main() {
             --from)
                 filter_from="$2"
                 shift 2
+                ;;
+            --type)
+                filter_type="$2"
+                shift 2
+                ;;
+            --reviews)
+                filter_reviews=true
+                shift
+                ;;
+            --contracts)
+                filter_contracts=true
+                shift
                 ;;
             --recent)
                 time_filter="-mtime -1"
@@ -169,10 +190,11 @@ main() {
         local json
         json=$(cat "$file")
 
-        local to from acknowledged
+        local to from acknowledged msg_type
         to=$(echo "$json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('to',''))")
         from=$(echo "$json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('from',''))")
         acknowledged=$(echo "$json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('acknowledged',False))")
+        msg_type=$(echo "$json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('type',''))")
 
         # Apply filters
         if [[ "$show_all" != "true" ]]; then
@@ -189,6 +211,33 @@ main() {
         # Filter by sender if specified
         if [[ -n "$filter_from" && "$from" != "$filter_from" ]]; then
             continue
+        fi
+
+        # Filter by message type if specified
+        if [[ -n "$filter_type" && "$msg_type" != "$filter_type" ]]; then
+            continue
+        fi
+
+        # Filter for review-related messages
+        if [[ "$filter_reviews" == "true" ]]; then
+            case "$msg_type" in
+                READY_FOR_REVIEW|REVIEW_COMPLETE|REVIEW_FAILED)
+                    ;;
+                *)
+                    continue
+                    ;;
+            esac
+        fi
+
+        # Filter for contract-related messages
+        if [[ "$filter_contracts" == "true" ]]; then
+            case "$msg_type" in
+                CONTRACT_CHANGE_PROPOSED|CONTRACT_CHANGE_ACK|CONTRACT_PUBLISHED|CONTRACT_REVIEW_NEEDED|CONTRACT_FEEDBACK|CONTRACT_APPROVED|CONTRACT_REJECTED)
+                    ;;
+                *)
+                    continue
+                    ;;
+            esac
         fi
 
         format_message "$file"
