@@ -146,3 +146,16 @@ class TenantNotSetError(TenantError):
 
 class TenantNotAllowedError(TenantError):
     """Raised when the requested tenant is not in the allowlist."""
+
+
+# Repo Mapper errors
+class RepoMapperError(ASDLCError):
+    """Base error for repo mapper operations."""
+
+
+class ParseError(RepoMapperError):
+    """Raised when file parsing fails."""
+
+
+class DependencyResolutionError(RepoMapperError):
+    """Raised when dependency resolution fails."""
