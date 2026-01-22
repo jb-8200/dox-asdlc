@@ -56,7 +56,7 @@ This document specifies the technical architecture for an agentic SDLC system al
 
 ## 4. Container topology
 
-### 4.1 Production topology (four containers)
+### 4.1 Production topology (five containers)
 
 1. **Container 1: Orchestrator and Governance**
    - Runs Manager Agent and governance services
@@ -69,12 +69,17 @@ This document specifies the technical architecture for an agentic SDLC system al
    - Each request includes a role, allowed tools, and a context pack
    - No protected branch write access
 
-3. **Container 3: Infrastructure Services**
-   - Redis (Streams, Hashes, optional JSON caches)
-   - KnowledgeStore prototype backend (ChromaDB or Qdrant)
-   - Tool execution sandbox if separated from workers
+3. **Container 3: Redis State Manager**
+   - Redis for event streams (asdlc:events)
+   - Task and session state caches (hashes)
+   - Coordination and pub/sub
 
-4. **Container 4: HITL Web UI**
+4. **Container 4: KnowledgeStore (RAG)**
+   - ChromaDB or Qdrant for vector search
+   - Abstract KnowledgeStore interface
+   - Replaceable with enterprise services (Anthology, Elasticsearch)
+
+5. **Container 5: HITL Web UI**
    - Gate request viewer and evidence explorer
    - Approval pushes responses back to Redis Streams
    - Authentication and audit logging
@@ -82,6 +87,50 @@ This document specifies the technical architecture for an agentic SDLC system al
 ### 4.2 Prototype option
 
 For a local prototype, Container 1 and Container 2 may be merged if Git branch protections and credentials are enforced by local policy. Production should keep Governance isolated.
+
+### 4.3 Kubernetes deployment model
+
+The system can be deployed to Kubernetes using Helm charts. This deployment model provides:
+- Namespace isolation (`dox-asdlc`)
+- StatefulSets for stateful services (Redis, ChromaDB)
+- Deployments for stateless services (Orchestrator, Workers, HITL-UI)
+- HorizontalPodAutoscaler for worker scaling
+- ConfigMaps for environment configuration
+- Secrets for credentials management
+
+**Namespace:** `dox-asdlc`
+
+All resources are deployed in a single namespace for logical isolation and simplified RBAC.
+
+**StatefulSets:**
+- `redis` - Event streaming and state cache (1 replica)
+- `chromadb` - KnowledgeStore backend (1 replica)
+
+Both use PersistentVolumeClaims for data durability.
+
+**Deployments:**
+- `orchestrator` - Governance services (1 replica, exclusive Git credentials)
+- `workers` - Agent execution pool (2-10 replicas via HPA)
+- `hitl-ui` - Approval interface (1 replica, NodePort for external access)
+
+**Services:**
+- ClusterIP services for internal communication
+- NodePort for HITL-UI external access (minikube)
+- HTTP only; TLS termination handled externally
+
+**Helm chart structure:**
+```
+helm/dox-asdlc/
+├── Chart.yaml
+├── values.yaml
+├── values-minikube.yaml
+└── charts/
+    ├── redis/
+    ├── chromadb/
+    ├── orchestrator/
+    ├── workers/
+    └── hitl-ui/
+```
 
 ## 5. Data and artifact model
 
@@ -263,3 +312,60 @@ Handlers must be idempotent:
 - Standard schema for context packs across languages.
 - Strategy for merge conflicts across parallel patches.
 - RLM trigger thresholds tuned per repo size and language.
+
+## 13. Multi-tenancy model
+
+The system supports multi-tenancy for shared deployments serving multiple organizations.
+
+### 13.1 Tenant identification
+
+Tenants are identified via:
+- HTTP header `X-Tenant-ID` on incoming requests
+- Event payload `tenant_id` field for async processing
+- Environment variable `DEFAULT_TENANT_ID` for single-tenant deployments
+
+### 13.2 Data isolation
+
+**Redis key prefixing:**
+```
+tenant:{tenant_id}:asdlc:events
+tenant:{tenant_id}:asdlc:task:{task_id}
+tenant:{tenant_id}:asdlc:session:{session_id}
+```
+
+**KnowledgeStore collection naming:**
+```
+{tenant_id}_asdlc_documents
+{tenant_id}_asdlc_specs
+```
+
+### 13.3 Context propagation
+
+Tenant context is propagated using Python's `contextvars`:
+- Middleware extracts tenant from `X-Tenant-ID` header
+- Context is set before request processing
+- All downstream operations use current tenant context
+- Event consumers extract tenant from event payload
+
+### 13.4 Security
+
+- Tenant IDs are validated against an allowlist (`ALLOWED_TENANTS`)
+- Invalid tenant requests are rejected with HTTP 403
+- Audit logging tracks all tenant context switches
+- No cross-tenant data access is possible at the application layer
+
+### 13.5 Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MULTI_TENANCY_ENABLED` | `false` | Enable multi-tenancy |
+| `DEFAULT_TENANT_ID` | `default` | Default tenant for single-tenant mode |
+| `ALLOWED_TENANTS` | `*` | Comma-separated tenant allowlist or `*` for any |
+
+### 13.6 HITL-UI tenant selector
+
+The HITL Web UI includes a tenant selector:
+- Dropdown populated from allowed tenants list
+- Selection persisted in browser session
+- All API requests include `X-Tenant-ID` header
+- Gate requests filtered to current tenant only

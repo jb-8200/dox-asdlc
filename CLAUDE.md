@@ -49,6 +49,17 @@ This project follows a **Spec Driven Development** workflow. No coding begins un
 │   ├── integration/
 │   └── e2e/
 ├── docker/                      # Container definitions
+├── helm/                        # Kubernetes Helm charts
+│   └── dox-asdlc/               # Umbrella chart
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       ├── values-minikube.yaml
+│       └── charts/              # Sub-charts
+│           ├── redis/
+│           ├── chromadb/
+│           ├── orchestrator/
+│           ├── workers/
+│           └── hitl-ui/
 └── scripts/                     # Development scripts
 ```
 
@@ -102,6 +113,26 @@ Example: `P01-F01-infra-setup`, `P02-F03-repo-mapper-agent`
 git add -A && git commit -m "feat(P01-F01): infra-setup complete"
 ```
 
+### Kubernetes Development (Phase 6+)
+```bash
+# Start local Kubernetes cluster
+./scripts/k8s/start-minikube.sh
+
+# Deploy all services via Helm
+./scripts/k8s/deploy.sh
+
+# Helm operations
+helm upgrade --install dox-asdlc ./helm/dox-asdlc -f helm/dox-asdlc/values-minikube.yaml
+helm list -n dox-asdlc
+
+# Verify deployment
+kubectl get pods -n dox-asdlc
+kubectl get services -n dox-asdlc
+
+# Teardown
+./scripts/k8s/teardown.sh
+```
+
 ## Phase Overview
 
 ### Phase 1: Infrastructure Foundation
@@ -130,6 +161,13 @@ git add -A && git commit -m "feat(P01-F01): infra-setup complete"
 - P05-F02: End-to-end workflow integration
 - P05-F03: Observability and metrics
 - P05-F04: Adaptive Feedback Learning (Evaluator Agent)
+
+### Phase 6: Kubernetes Platform Migration
+- P06-F01: Kubernetes base infrastructure (minikube, Helm)
+- P06-F02: Redis StatefulSet deployment
+- P06-F03: ChromaDB StatefulSet deployment (RAG service)
+- P06-F04: Stateless services deployment (orchestrator, workers, HITL-UI)
+- P06-F05: Multi-tenancy support
 
 ## Key Principles
 
