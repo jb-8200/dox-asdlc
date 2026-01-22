@@ -1,13 +1,14 @@
 {
   "backend": {
-    "active": false
+    "active": true,
+    "last_update": "2026-01-22T21:37:36Z"
   },
   "frontend": {
     "active": true,
-    "last_update": "2026-01-22T21:25:53Z"
+    "last_update": "2026-01-22T21:37:36Z"
   },
   "orchestrator": {
     "active": true,
-    "last_update": "2026-01-22T21:33:37Z"
+    "last_update": "2026-01-22T21:41:04Z"
   }
 }
