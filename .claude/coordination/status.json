@@ -3,10 +3,11 @@
     "active": false
   },
   "frontend": {
-    "active": false
+    "active": true,
+    "last_update": "2026-01-22T21:25:53Z"
   },
   "orchestrator": {
     "active": true,
-    "last_update": "2026-01-22T20:45:28Z"
+    "last_update": "2026-01-22T21:33:37Z"
   }
 }

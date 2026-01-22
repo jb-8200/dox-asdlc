@@ -74,6 +74,40 @@ git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}" || echo "ERROR: Wron
 
 ---
 
+## Planning Artifact Requirements
+
+**MANDATORY:** ALL features require formal planning artifacts in `.workitems/` BEFORE any code.
+
+**Even if the user provides:**
+- Detailed inline implementation plans
+- Complete specifications in chat
+- Copy-paste ready code
+- "Just do X" instructions with full context
+
+**You MUST still:**
+1. Run `./scripts/new-feature.sh Pnn Fnn "description"`
+2. Populate `design.md`, `tasks.md`, `user_stories.md`
+3. Commit planning artifacts to git
+4. THEN begin implementation
+
+**No exceptions.** Inline plans supplement but do NOT replace formal planning artifacts.
+
+**Ownership:**
+- `.workitems/` is **SHARED** (not a meta file)
+- Backend-CLI: Creates and manages `.workitems/P01-*`, `P02-*`, `P03-*`, `P06-*`
+- Frontend-CLI: Creates and manages `.workitems/P05-*`
+- Orchestrator: Can read all, modify any, but does NOT create planning for feature CLIs
+
+**Why this matters:**
+- Planning artifacts are the source of truth for feature scope
+- They enable TDD workflow (tasks → tests → code)
+- They provide review checkpoints for orchestrator
+- They prevent scope creep and "just one more thing" drift
+
+**Common mistake:** Treating user's detailed prompt as permission to skip `.workitems/` creation. This is ALWAYS a workflow violation.
+
+---
+
 ## Rule 1: Instance Identity
 
 **BEFORE starting any work, verify your instance identity:**

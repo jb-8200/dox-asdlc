@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 COORDINATION_DIR="$PROJECT_ROOT/.claude/coordination"
 STATUS_FILE="$COORDINATION_DIR/status.json"
@@ -43,6 +43,14 @@ update_status() {
         echo '{"backend":{"active":false},"frontend":{"active":false},"orchestrator":{"active":false}}' > "$STATUS_FILE"
     fi
 
+    # Convert bash boolean to Python boolean
+    local py_active
+    if [[ "$active" == "true" ]]; then
+        py_active="True"
+    else
+        py_active="False"
+    fi
+
     # Update status using Python for reliable JSON manipulation
     python3 -c "
 import json
@@ -51,7 +59,7 @@ import sys
 with open('$STATUS_FILE', 'r') as f:
     status = json.load(f)
 
-status['$instance']['active'] = $active
+status['$instance']['active'] = $py_active
 status['$instance']['last_update'] = '$timestamp'
 
 with open('$STATUS_FILE', 'w') as f:
@@ -147,7 +155,7 @@ main() {
 }
 
 # Check if script is being sourced
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ -n "${BASH_SOURCE[0]:-}" ]] && [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "Warning: This script should be sourced, not executed."
     echo "Use: source scripts/cli-identity.sh <backend|frontend|orchestrator>"
     exit 1
