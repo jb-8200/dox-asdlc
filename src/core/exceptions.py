@@ -159,3 +159,24 @@ class ParseError(RepoMapperError):
 
 class DependencyResolutionError(RepoMapperError):
     """Raised when dependency resolution fails."""
+
+
+# Coordination errors
+class CoordinationError(ASDLCError):
+    """Base error for CLI coordination operations."""
+
+
+class MessageNotFoundError(CoordinationError):
+    """Raised when a coordination message is not found."""
+
+
+class PublishError(CoordinationError):
+    """Raised when message publishing fails."""
+
+
+class AcknowledgeError(CoordinationError):
+    """Raised when message acknowledgment fails."""
+
+
+class PresenceError(CoordinationError):
+    """Raised when presence operations fail."""
