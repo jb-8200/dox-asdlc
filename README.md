@@ -1,24 +1,26 @@
 # aSDLC Implementation Project
 
-An Agentic Software Development Lifecycle system implementing Spec Driven Development with explicit HITL governance gates.
+An Agentic Software Development Lifecycle (aSDLC) system using the Claude Agent SDK, Redis for event coordination, and a bash-first tool abstraction layer. The system follows Spec Driven Development principles with explicit HITL governance gates.
 
 ## Quick Start
 
 This project uses Claude Code CLI for development. The workflow enforces planning before implementation.
 
 **Prerequisites:**
-- Docker 24+
+
 - Python 3.11+
 - Claude Code CLI installed and authenticated
+- Docker 24+ (for local development)
+- Kubernetes + Helm 3+ (for k8s deployment)
 
-**Development Setup:**
+**Local Development (Docker Compose):**
 
 ```bash
 # Clone and enter project
-cd asdlc-project
+cd dox-asdlc
 
-# Start infrastructure (after P01-F01 is complete)
-docker compose up -d
+# Start infrastructure
+docker compose -f docker/docker-compose.yml up -d
 
 # Create a new feature
 ./scripts/new-feature.sh P01 F02 "feature-name"
@@ -30,10 +32,21 @@ docker compose up -d
 ./scripts/check-completion.sh P01-F02-feature-name
 ```
 
+**Kubernetes Development (Minikube):**
+
+```bash
+# Start local cluster and deploy
+./scripts/k8s/start-minikube.sh
+./scripts/k8s/deploy.sh
+
+# Verify
+kubectl get pods -n dox-asdlc
+```
+
 ## Project Structure
 
-```
-asdlc-project/
+```text
+dox-asdlc/
 ├── CLAUDE.md              # Claude Code configuration
 ├── .claude/               # Claude Code settings and skills
 │   ├── settings.json
