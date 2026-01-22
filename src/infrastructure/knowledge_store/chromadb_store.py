@@ -1,6 +1,7 @@
 """ChromaDB implementation of the KnowledgeStore interface.
 
 Provides vector storage and semantic search using ChromaDB backend.
+Supports multi-tenancy through tenant-prefixed collection names.
 """
 
 from __future__ import annotations
@@ -10,11 +11,13 @@ from typing import Any
 
 import chromadb
 
+from src.core.config import get_tenant_config
 from src.core.exceptions import (
     BackendConnectionError,
     IndexingError,
     SearchError,
 )
+from src.core.tenant import TenantContext
 from src.infrastructure.knowledge_store.config import KnowledgeStoreConfig
 from src.infrastructure.knowledge_store.models import Document, SearchResult
 
@@ -54,18 +57,19 @@ class ChromaDBStore:
             BackendConnectionError: If connection to ChromaDB fails.
         """
         self.config = config
+        self._base_collection_name = config.collection_name
+        self._collection_cache: dict[str, Any] = {}
 
         try:
             self._client = chromadb.HttpClient(
                 host=config.host,
                 port=config.port,
             )
-            self._collection = self._client.get_or_create_collection(
-                name=config.collection_name,
-            )
+            # Test connection by getting heartbeat
+            self._client.heartbeat()
             logger.info(
                 f"Connected to ChromaDB at {config.host}:{config.port}, "
-                f"collection: {config.collection_name}"
+                f"base collection: {config.collection_name}"
             )
         except Exception as e:
             logger.error(f"Failed to connect to ChromaDB: {e}")
@@ -77,10 +81,45 @@ class ChromaDBStore:
                 },
             ) from e
 
+    def _get_collection_name(self) -> str:
+        """Get the collection name, with tenant prefix if multi-tenancy is enabled.
+
+        Returns:
+            str: The collection name to use for operations.
+        """
+        tenant_config = get_tenant_config()
+        if tenant_config.enabled:
+            try:
+                tenant_id = TenantContext.get_current_tenant()
+                return f"{tenant_id}_{self._base_collection_name}"
+            except Exception:
+                # No tenant in context, use default
+                return f"{tenant_config.default_tenant}_{self._base_collection_name}"
+        return self._base_collection_name
+
+    def _get_collection(self) -> Any:
+        """Get or create the ChromaDB collection for the current tenant.
+
+        Uses caching to avoid repeated get_or_create calls.
+
+        Returns:
+            ChromaDB Collection object.
+        """
+        collection_name = self._get_collection_name()
+
+        if collection_name not in self._collection_cache:
+            self._collection_cache[collection_name] = (
+                self._client.get_or_create_collection(name=collection_name)
+            )
+            logger.debug(f"Initialized collection: {collection_name}")
+
+        return self._collection_cache[collection_name]
+
     async def index_document(self, document: Document) -> str:
         """Index a document in ChromaDB.
 
         If a document with the same doc_id exists, it will be updated (upsert).
+        Uses tenant-prefixed collection in multi-tenant mode.
 
         Args:
             document: The document to index.
@@ -92,6 +131,7 @@ class ChromaDBStore:
             IndexingError: If indexing fails.
         """
         try:
+            collection = self._get_collection()
             upsert_kwargs: dict[str, Any] = {
                 "ids": [document.doc_id],
                 "documents": [document.content],
@@ -102,7 +142,7 @@ class ChromaDBStore:
             if document.embedding is not None:
                 upsert_kwargs["embeddings"] = [document.embedding]
 
-            self._collection.upsert(**upsert_kwargs)
+            collection.upsert(**upsert_kwargs)
 
             logger.debug(f"Indexed document: {document.doc_id}")
             return document.doc_id
@@ -122,6 +162,8 @@ class ChromaDBStore:
     ) -> list[SearchResult]:
         """Search for documents similar to the query.
 
+        Uses tenant-prefixed collection in multi-tenant mode.
+
         Args:
             query: The search query text.
             top_k: Maximum number of results to return.
@@ -134,6 +176,7 @@ class ChromaDBStore:
             SearchError: If the search operation fails.
         """
         try:
+            collection = self._get_collection()
             query_kwargs: dict[str, Any] = {
                 "query_texts": [query],
                 "n_results": top_k,
@@ -142,7 +185,7 @@ class ChromaDBStore:
             if filters:
                 query_kwargs["where"] = filters
 
-            results = self._collection.query(**query_kwargs)
+            results = collection.query(**query_kwargs)
 
             # Convert ChromaDB results to SearchResult objects
             search_results: list[SearchResult] = []
@@ -179,6 +222,8 @@ class ChromaDBStore:
     async def get_by_id(self, doc_id: str) -> Document | None:
         """Retrieve a document by its ID.
 
+        Uses tenant-prefixed collection in multi-tenant mode.
+
         Args:
             doc_id: The unique identifier of the document.
 
@@ -189,7 +234,8 @@ class ChromaDBStore:
             BackendConnectionError: If connection to backend fails.
         """
         try:
-            result = self._collection.get(
+            collection = self._get_collection()
+            result = collection.get(
                 ids=[doc_id],
                 include=["documents", "metadatas", "embeddings"],
             )
@@ -214,6 +260,8 @@ class ChromaDBStore:
     async def delete(self, doc_id: str) -> bool:
         """Delete a document from the knowledge store.
 
+        Uses tenant-prefixed collection in multi-tenant mode.
+
         Args:
             doc_id: The unique identifier of the document to delete.
 
@@ -224,13 +272,14 @@ class ChromaDBStore:
             BackendConnectionError: If connection to backend fails.
         """
         try:
+            collection = self._get_collection()
             # Check if document exists first
-            result = self._collection.get(ids=[doc_id])
+            result = collection.get(ids=[doc_id])
 
             if not result["ids"]:
                 return False
 
-            self._collection.delete(ids=[doc_id])
+            collection.delete(ids=[doc_id])
             logger.debug(f"Deleted document: {doc_id}")
             return True
 
@@ -249,12 +298,14 @@ class ChromaDBStore:
         """
         try:
             heartbeat = self._client.heartbeat()
+            collection_name = self._get_collection_name()
             return {
                 "status": "healthy",
                 "backend": "chromadb",
                 "host": self.config.host,
                 "port": self.config.port,
-                "collection": self.config.collection_name,
+                "base_collection": self._base_collection_name,
+                "active_collection": collection_name,
                 "heartbeat": heartbeat,
             }
         except Exception as e:

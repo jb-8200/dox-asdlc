@@ -64,16 +64,23 @@ class TestChromaDBStoreInit:
             assert store is not None
             assert store.config == mock_config
 
-    def test_store_creates_collection(
+    def test_store_creates_collection_on_first_access(
         self, mock_config: KnowledgeStoreConfig, mock_client: MagicMock
     ) -> None:
-        """Test ChromaDBStore creates or gets collection."""
+        """Test ChromaDBStore creates collection on first access (lazy init)."""
         with patch(
             "src.infrastructure.knowledge_store.chromadb_store.chromadb.HttpClient",
             return_value=mock_client,
         ):
             store = ChromaDBStore(mock_config)
 
+            # Collection is not created during __init__ (lazy initialization)
+            mock_client.get_or_create_collection.assert_not_called()
+
+            # Trigger collection creation by calling _get_collection()
+            store._get_collection()
+
+            # Now collection should be created
             mock_client.get_or_create_collection.assert_called_once()
 
     def test_store_connection_error(self, mock_config: KnowledgeStoreConfig) -> None:
@@ -417,7 +424,8 @@ class TestChromaDBStoreHealthCheck:
         mock_client: MagicMock,
     ) -> None:
         """Test health check returns unhealthy on error."""
-        mock_client.heartbeat.side_effect = Exception("Connection lost")
+        # First heartbeat succeeds (for init), then fails (for health check)
+        mock_client.heartbeat.side_effect = [123456, Exception("Connection lost")]
 
         with patch(
             "src.infrastructure.knowledge_store.chromadb_store.chromadb.HttpClient",

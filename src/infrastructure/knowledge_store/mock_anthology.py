@@ -3,6 +3,7 @@
 Provides an in-memory implementation of the KnowledgeStore protocol
 for testing and development without requiring ChromaDB or external services.
 This simulates the behavior of an enterprise search service like Anthology.
+Supports multi-tenancy through tenant-prefixed storage.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ from typing import Any
 
 import numpy as np
 
+from src.core.config import get_tenant_config
+from src.core.tenant import TenantContext
 from src.infrastructure.knowledge_store.config import KnowledgeStoreConfig
 from src.infrastructure.knowledge_store.models import Document, SearchResult
 
@@ -56,13 +59,42 @@ class MockAnthologyStore:
             config: Configuration for the store.
         """
         self._config = config
-        self._documents: dict[str, Document] = {}
-        self._embeddings: dict[str, np.ndarray] = {}
+        # Tenant-keyed storage: {tenant_id: {doc_id: Document}}
+        self._tenant_documents: dict[str, dict[str, Document]] = {}
+        self._tenant_embeddings: dict[str, dict[str, np.ndarray]] = {}
         self._embedding_dim = 384  # Simulated embedding dimension
 
         logger.info(
             "MockAnthologyStore initialized (in-memory, for testing only)"
         )
+
+    def _get_tenant_key(self) -> str:
+        """Get the tenant key for current context.
+
+        Returns:
+            str: The tenant ID or default tenant.
+        """
+        tenant_config = get_tenant_config()
+        if tenant_config.enabled:
+            try:
+                return TenantContext.get_current_tenant()
+            except Exception:
+                return tenant_config.default_tenant
+        return "_default"
+
+    def _get_documents(self) -> dict[str, Document]:
+        """Get documents dict for current tenant."""
+        tenant = self._get_tenant_key()
+        if tenant not in self._tenant_documents:
+            self._tenant_documents[tenant] = {}
+        return self._tenant_documents[tenant]
+
+    def _get_embeddings(self) -> dict[str, np.ndarray]:
+        """Get embeddings dict for current tenant."""
+        tenant = self._get_tenant_key()
+        if tenant not in self._tenant_embeddings:
+            self._tenant_embeddings[tenant] = {}
+        return self._tenant_embeddings[tenant]
 
     def _generate_embedding(self, text: str) -> np.ndarray:
         """Generate a deterministic pseudo-embedding for text.
@@ -107,14 +139,19 @@ class MockAnthologyStore:
     async def index_document(self, document: Document) -> str:
         """Index a document in the mock store.
 
+        Uses tenant-specific storage in multi-tenant mode.
+
         Args:
             document: The document to index.
 
         Returns:
             The doc_id of the indexed document.
         """
-        self._documents[document.doc_id] = document
-        self._embeddings[document.doc_id] = self._generate_embedding(
+        documents = self._get_documents()
+        embeddings = self._get_embeddings()
+
+        documents[document.doc_id] = document
+        embeddings[document.doc_id] = self._generate_embedding(
             document.content
         )
 
@@ -131,6 +168,8 @@ class MockAnthologyStore:
     ) -> list[SearchResult]:
         """Search for documents similar to the query.
 
+        Uses tenant-specific storage in multi-tenant mode.
+
         Args:
             query: The search query text.
             top_k: Maximum number of results to return.
@@ -139,15 +178,18 @@ class MockAnthologyStore:
         Returns:
             List of SearchResult objects, ordered by relevance.
         """
-        if not self._documents:
+        documents = self._get_documents()
+        embeddings = self._get_embeddings()
+
+        if not documents:
             return []
 
         query_embedding = self._generate_embedding(query)
 
         # Calculate similarities
         scores: list[tuple[str, float]] = []
-        for doc_id, doc_embedding in self._embeddings.items():
-            doc = self._documents[doc_id]
+        for doc_id, doc_embedding in embeddings.items():
+            doc = documents[doc_id]
 
             # Apply filters if provided
             if filters:
@@ -169,7 +211,7 @@ class MockAnthologyStore:
         # Build SearchResult objects
         results = []
         for doc_id, score in top_results:
-            doc = self._documents[doc_id]
+            doc = documents[doc_id]
             results.append(
                 SearchResult(
                     doc_id=doc_id,
@@ -187,16 +229,21 @@ class MockAnthologyStore:
     async def get_by_id(self, doc_id: str) -> Document | None:
         """Retrieve a document by its ID.
 
+        Uses tenant-specific storage in multi-tenant mode.
+
         Args:
             doc_id: The unique identifier of the document.
 
         Returns:
             The Document if found, None otherwise.
         """
-        return self._documents.get(doc_id)
+        documents = self._get_documents()
+        return documents.get(doc_id)
 
     async def delete(self, doc_id: str) -> bool:
         """Delete a document from the mock store.
+
+        Uses tenant-specific storage in multi-tenant mode.
 
         Args:
             doc_id: The unique identifier of the document to delete.
@@ -204,9 +251,12 @@ class MockAnthologyStore:
         Returns:
             True if the document was deleted, False if not found.
         """
-        if doc_id in self._documents:
-            del self._documents[doc_id]
-            del self._embeddings[doc_id]
+        documents = self._get_documents()
+        embeddings = self._get_embeddings()
+
+        if doc_id in documents:
+            del documents[doc_id]
+            del embeddings[doc_id]
             logger.debug(f"MockAnthologyStore: Deleted document {doc_id}")
             return True
         return False
@@ -217,18 +267,31 @@ class MockAnthologyStore:
         Returns:
             Dictionary with health status information.
         """
+        documents = self._get_documents()
+        tenant = self._get_tenant_key()
         return {
             "status": "healthy",
             "backend": "mock_anthology",
-            "document_count": len(self._documents),
+            "tenant": tenant,
+            "document_count": len(documents),
             "timestamp": time.time(),
         }
 
-    def clear(self) -> None:
-        """Clear all documents from the store.
+    def clear(self, all_tenants: bool = False) -> None:
+        """Clear documents from the store.
 
-        Useful for test cleanup.
+        Args:
+            all_tenants: If True, clears all tenant data. If False, only
+                clears current tenant's data. Useful for test cleanup.
         """
-        self._documents.clear()
-        self._embeddings.clear()
-        logger.debug("MockAnthologyStore: Cleared all documents")
+        if all_tenants:
+            self._tenant_documents.clear()
+            self._tenant_embeddings.clear()
+            logger.debug("MockAnthologyStore: Cleared all tenant documents")
+        else:
+            tenant = self._get_tenant_key()
+            if tenant in self._tenant_documents:
+                self._tenant_documents[tenant].clear()
+            if tenant in self._tenant_embeddings:
+                self._tenant_embeddings[tenant].clear()
+            logger.debug(f"MockAnthologyStore: Cleared documents for tenant {tenant}")
