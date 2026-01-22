@@ -291,3 +291,39 @@ class ASTContext:
             created_at=datetime.fromisoformat(data["created_at"]),
             token_estimate=data.get("token_estimate", 0),
         )
+
+
+@dataclass
+class FileContent:
+    """File content for context pack."""
+    path: str
+    content: str
+    language: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"path": self.path, "content": self.content, "language": self.language}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> FileContent:
+        return cls(path=data["path"], content=data["content"], language=data["language"])
+
+
+@dataclass
+class ContextPack:
+    """Context pack for agent execution."""
+    task_id: str
+    role: str
+    git_sha: str
+    files: list[FileContent]
+    symbols: list[SymbolInfo]
+    dependencies: list[DependencyInfo]
+    metadata: dict[str, Any]
+    token_count: int
+    relevance_scores: dict[str, float]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"task_id": self.task_id, "role": self.role, "git_sha": self.git_sha, "files": [f.to_dict() for f in self.files], "symbols": [s.to_dict() for s in self.symbols], "dependencies": [d.to_dict() for d in self.dependencies], "metadata": self.metadata, "token_count": self.token_count, "relevance_scores": self.relevance_scores}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ContextPack:
+        return cls(task_id=data["task_id"], role=data["role"], git_sha=data["git_sha"], files=[FileContent.from_dict(f) for f in data["files"]], symbols=[SymbolInfo.from_dict(s) for s in data["symbols"]], dependencies=[DependencyInfo.from_dict(d) for d in data["dependencies"]], metadata=data["metadata"], token_count=data["token_count"], relevance_scores=data["relevance_scores"])
