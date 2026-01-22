@@ -3,8 +3,8 @@
 ## Progress
 
 - Started: 2026-01-23
-- Tasks Complete: 2/68
-- Percentage: 3%
+- Tasks Complete: 3/68
+- Percentage: 4%
 - Status: IN_PROGRESS
 - Blockers: None
 
@@ -31,14 +31,25 @@
 - **Completed:** 2026-01-23
 - **Test Results:** 12 tests passed (sessionStore: 4, studioStore: 4, eventStore: 4)
 
-### TASK-003: Implement WebSocket client utility
-- [ ] Create `utils/websocket.ts` with connection management
-- [ ] Implement reconnection logic (exponential backoff)
-- [ ] Add connection state tracking
-- [ ] Add event subscription/unsubscription
-- [ ] Write unit tests for reconnection logic
+### TASK-003: Implement WebSocket client utility ✓
+- [x] Create `utils/websocket.ts` with connection management
+- [x] Implement reconnection logic (exponential backoff via socket.io)
+- [x] Add connection state tracking
+- [x] Add event subscription/unsubscription
+- [x] Write unit tests for reconnection logic
+- [x] Document edge cases in code comments
+- [x] Add VITE_WS_URL to .env.example
 - **Estimate:** 1.5h
-- **Tests:** Reconnection works after disconnect, events are delivered
+- **Tests:** 18 tests passed (connection, reconnection, events, error handling)
+- **Completed:** 2026-01-23
+- **Implementation Notes:**
+  - Used socket.io-client per orchestrator recommendation
+  - Built-in exponential backoff (1000-5000ms, max 10 attempts)
+  - Automatic fallback to polling transport
+  - Singleton instance exported as `wsClient`
+  - 7 edge cases documented in code comments
+  - Full integration with eventStore for connection state
+  - Proper TypeScript types (EventHandler type defined)
 
 ### TASK-004: Create API client modules
 - [ ] Create `api/runs.ts` (list runs, get run detail)
