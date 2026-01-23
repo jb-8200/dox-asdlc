@@ -1,69 +1,84 @@
-# Identity Selection at Session Start
+# Role-Based Subagents
 
-## When to Trigger
+## Overview
 
-When you see `IDENTITY SELECTION REQUIRED` in the SessionStart hook output, you MUST immediately prompt the user to select their agent role before doing any other work.
+This project uses role-specific subagents instead of interactive identity selection. Each subagent has built-in path restrictions, coordination protocols, and domain expertise.
 
-## How to Select Identity
+## Available Role Subagents
 
-Use the `AskUserQuestion` tool with this configuration:
+| Subagent | Domain | Features |
+|----------|--------|----------|
+| `backend` | Workers, infrastructure | P01-P03, P06 |
+| `frontend` | HITL UI, React | P05 |
+| `orchestrator` | Meta files, coordination | All phases |
 
-```json
-{
-  "questions": [{
-    "question": "Which agent role do you want to use for this session?",
-    "header": "Agent Role",
-    "multiSelect": false,
-    "options": [
-      {
-        "label": "Orchestrator",
-        "description": "Master agent: review code, merge to main, modify docs/contracts/rules"
-      },
-      {
-        "label": "Backend",
-        "description": "Backend developer: workers, orchestrator service, infrastructure"
-      },
-      {
-        "label": "Frontend",
-        "description": "Frontend developer: HITL UI, React components"
-      }
-    ]
-  }]
-}
+## When to Invoke Each Subagent
+
+### Backend Subagent
+
+Invoke for:
+- Implementing worker agents (`src/workers/`)
+- Orchestrator service changes (`src/orchestrator/`)
+- Infrastructure components (`src/infrastructure/`)
+- Core shared modules (`src/core/`)
+- Backend Docker containers (`docker/workers/`, `docker/orchestrator/`)
+
+```
+"Use the backend subagent to implement the worker pool"
 ```
 
-## After User Selection
+### Frontend Subagent
 
-Based on the user's choice, immediately set the git config:
+Invoke for:
+- HITL Web UI components (`docker/hitl-ui/`)
+- UI Python backend (`src/hitl_ui/`)
+- Frontend tests and E2E tests
 
-**Orchestrator:**
-```bash
-git config user.email "claude-orchestrator@asdlc.local"
-git config user.name "Claude Orchestrator"
+```
+"Use the frontend subagent to add the approval dialog"
 ```
 
-**Backend:**
-```bash
-git config user.email "claude-backend@asdlc.local"
-git config user.name "Claude Backend"
-```
+### Orchestrator Subagent
 
-**Frontend:**
-```bash
-git config user.email "claude-frontend@asdlc.local"
-git config user.name "Claude Frontend"
-```
+Invoke for:
+- Documentation updates (`docs/`)
+- Contract changes (`contracts/`)
+- Rule updates (`.claude/rules/`)
+- Processing coordination messages
+- Resolving blocking issues
 
-Then confirm the identity is set and show the user their permissions.
+```
+"Use the orchestrator subagent to update the API contract"
+```
 
 ## Role Permissions Summary
 
-| Role | Can Modify | Cannot Modify | Can Merge to Main |
-|------|------------|---------------|-------------------|
-| Orchestrator | All files | - | Yes |
-| Backend | src/workers/, src/orchestrator/, src/infrastructure/, .workitems/P01-P03,P06 | src/hitl_ui/, docs/, contracts/, CLAUDE.md | No |
-| Frontend | src/hitl_ui/, docker/hitl-ui/, .workitems/P05-* | src/workers/, docs/, contracts/, CLAUDE.md | No |
+| Role | Can Modify | Cannot Modify | Commits to Main |
+|------|------------|---------------|-----------------|
+| orchestrator | All files | - | Yes |
+| backend | src/workers/, src/orchestrator/, src/infrastructure/, .workitems/P01-P03,P06 | src/hitl_ui/, docs/, contracts/, CLAUDE.md | Yes |
+| frontend | src/hitl_ui/, docker/hitl-ui/, .workitems/P05-* | src/workers/, docs/, contracts/, CLAUDE.md | Yes |
 
-## Changing Identity Mid-Session
+## Git Identity
 
-If the user needs to switch roles, they can ask to "change agent role" or "switch to backend/frontend/orchestrator". Use the same AskUserQuestion flow to re-select.
+When a subagent starts work, it sets the appropriate git identity:
+
+| Subagent | Git Email | Git Name |
+|----------|-----------|----------|
+| backend | `claude-backend@asdlc.local` | Claude Backend |
+| frontend | `claude-frontend@asdlc.local` | Claude Frontend |
+| orchestrator | `claude-orchestrator@asdlc.local` | Claude Orchestrator |
+
+## Coordination
+
+Each role subagent has built-in Redis coordination:
+- Checks pending messages on start
+- Publishes status updates on completion
+- Can publish BLOCKING_ISSUE to orchestrator when stuck
+- Acknowledges processed messages
+
+See `.claude/subagents/` for full subagent definitions.
+
+## Legacy: Interactive Selection (Deprecated)
+
+The previous `IDENTITY SELECTION REQUIRED` prompt system has been replaced by subagents. If you see that message, it means the session-start hook needs updating.

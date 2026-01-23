@@ -1,61 +1,18 @@
 #!/usr/bin/env python3
 """
-SessionStart hook for CLI Agent Identity Enforcement.
+SessionStart hook for Claude Code sessions.
 
-This hook runs at the start of each Claude Code session to:
-1. Check git config for a recognized CLI email
-2. If no identity set, output a signal for Claude to prompt the user
-3. If identity exists, display current role information
-
-Identity is derived from git config user.email.
+This hook runs at the start of each Claude Code session to display
+environment information. Role-specific behavior is now handled by
+subagents (backend.md, frontend.md, orchestrator.md).
 
 Exit codes:
-  0 - Success (context injected or signal emitted)
+  0 - Success (context injected)
   Non-zero - Error (but session continues)
 """
 
 import subprocess
 import sys
-
-# Map git email to identity info
-# TBD: All CLIs can commit to main (tests must pass via pre-commit hook)
-IDENTITY_INFO = {
-    "claude-backend@asdlc.local": {
-        "instance_id": "backend",
-        "role": "Backend Developer",
-        "allowed": "src/workers/, src/orchestrator/, src/infrastructure/",
-        "forbidden": "src/hitl_ui/, CLAUDE.md, docs/, contracts/",
-        "can_merge": True,  # TBD
-    },
-    "claude-frontend@asdlc.local": {
-        "instance_id": "frontend",
-        "role": "Frontend Developer",
-        "allowed": "src/hitl_ui/, .workitems/P05-*",
-        "forbidden": "src/workers/, CLAUDE.md, docs/, contracts/",
-        "can_merge": True,  # TBD
-    },
-    "claude-orchestrator@asdlc.local": {
-        "instance_id": "orchestrator",
-        "role": "Orchestrator (Coordinator)",
-        "allowed": "All files",
-        "forbidden": "None",
-        "can_merge": True,
-    },
-}
-
-
-def get_git_email() -> str:
-    """Get the current git user.email config."""
-    try:
-        result = subprocess.run(
-            ["git", "config", "user.email"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        return result.stdout.strip()
-    except Exception:
-        return ""
 
 
 def get_current_branch() -> str:
@@ -72,45 +29,46 @@ def get_current_branch() -> str:
         return ""
 
 
+def get_git_email() -> str:
+    """Get the current git user.email config."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return result.stdout.strip()
+    except Exception:
+        return ""
+
+
 def main():
-    git_email = get_git_email()
-    identity = IDENTITY_INFO.get(git_email)
     current_branch = get_current_branch()
+    git_email = get_git_email()
 
-    if not identity:
-        # Signal for Claude to prompt user for role selection
-        print("startup hook success: " + "=" * 50)
-        print("  IDENTITY SELECTION REQUIRED")
-        print("=" * 50)
-        print("")
-        print("No CLI agent role is configured for this session.")
-        print("Claude will prompt you to select your role.")
-        print("")
-        print(f"Current branch: {current_branch or '(detached HEAD)'}")
-        print("=" * 50)
-        sys.exit(0)
-
-    instance_id = identity["instance_id"]
-
-    # Print session context for established identity
     print("startup hook success: " + "=" * 50)
-    print(f"  CLI Instance: {instance_id.upper()}")
+    print("  aSDLC Development Session")
     print("=" * 50)
     print("")
+    print(f"Branch: {current_branch or '(detached HEAD)'}")
 
-    print(f"Role: {identity['role']}")
-    if instance_id == "orchestrator":
-        print("Branch: main (exclusive meta file access)")
-        print("Exclusive ownership: CLAUDE.md, docs/, contracts/, .claude/rules/")
-        print("Can commit to main: Yes (tests must pass)")
-    else:
-        print(f"Allowed: {identity['allowed']}")
-        print(f"Forbidden: {identity['forbidden']}")
-        print("Can commit to main: Yes (tests must pass)")
+    if git_email:
+        # Show current git identity if set (may be from previous subagent)
+        if "backend" in git_email:
+            print(f"Last identity: Backend ({git_email})")
+        elif "frontend" in git_email:
+            print(f"Last identity: Frontend ({git_email})")
+        elif "orchestrator" in git_email:
+            print(f"Last identity: Orchestrator ({git_email})")
+        else:
+            print(f"Git email: {git_email}")
 
     print("")
-    print(f"Current branch: {current_branch or '(detached HEAD)'}")
-
+    print("Invoke a subagent for role-specific work:")
+    print("  - backend: workers, infrastructure, P01-P03/P06")
+    print("  - frontend: HITL UI, React, P05")
+    print("  - orchestrator: meta files, contracts, coordination")
     print("")
     print("=" * 50)
     sys.exit(0)

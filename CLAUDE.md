@@ -18,6 +18,31 @@ This project follows a **Spec Driven Development** workflow. No coding begins un
 
 4. **Atomic Commits**: Commit only when a feature reaches 100% completion. No partial feature commits to main branch.
 
+## Subagent Selection
+
+The project uses role-specific subagents for domain-specific work. Each subagent has built-in path restrictions and Redis coordination.
+
+| User Request | Invoke Subagent | Domain |
+|--------------|-----------------|--------|
+| Backend work (workers, agents, infra) | `backend` | P01-P03, P06 |
+| Frontend work (HITL UI, React) | `frontend` | P05 |
+| Meta files, contracts, coordination | `orchestrator` | All phases |
+| Planning artifacts | `planner` | All phases |
+| TDD implementation | `implementer` | All phases |
+| Code review | `reviewer` | All phases |
+
+### Role Subagents (CLI Identity)
+
+- **backend** - Workers, orchestrator service, infrastructure (`src/workers/`, `src/orchestrator/`, `src/infrastructure/`)
+- **frontend** - HITL Web UI, React components (`docker/hitl-ui/`, `src/hitl_ui/`)
+- **orchestrator** - Coordinator with exclusive meta file access (`CLAUDE.md`, `docs/`, `contracts/`, `.claude/rules/`)
+
+### Workflow Subagents
+
+- **planner** - Creates planning artifacts (`.workitems/`)
+- **implementer** - TDD execution for tasks
+- **reviewer** - Code review and quality checks
+
 ## Project Structure
 
 ```
@@ -147,10 +172,10 @@ kubectl get services -n dox-asdlc
 
 ### CLI Coordination (Trunk-Based Development)
 ```bash
-# Start Claude Code - you'll be prompted to select your agent role:
-# - Orchestrator: meta files, docs, contracts, coordination
-# - Backend: workers, orchestrator service, infrastructure
-# - Frontend: HITL UI, React components
+# Start Claude Code and invoke the appropriate subagent for your task:
+# - backend: workers, orchestrator service, infrastructure
+# - frontend: HITL UI, React components
+# - orchestrator: meta files, docs, contracts, coordination
 claude
 
 # TBD: All CLIs commit directly to main (tests must pass)
@@ -159,13 +184,8 @@ git add <files>
 git commit -m "feat(P01-F06): ..."  # Pre-commit hook runs tests
 git push                           # Push to main
 
-# Check for pending messages
-./scripts/coordination/check-messages.sh --pending
-
-# Acknowledge message
-./scripts/coordination/ack-message.sh <message-id>
-
-# Switch roles mid-session: ask "switch to orchestrator" or "change agent role"
+# Coordination happens automatically via subagent Redis integration
+# Each subagent checks/publishes messages as part of its workflow
 ```
 
 ## Phase Overview
