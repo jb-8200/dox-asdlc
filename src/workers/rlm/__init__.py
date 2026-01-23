@@ -11,6 +11,7 @@ from src.workers.rlm.audit import AuditEntry, RLMAuditor
 from src.workers.rlm.budget_manager import BudgetSnapshot, SubCallBudgetManager
 from src.workers.rlm.cache import CacheEntry, CacheStats, SubCallCache
 from src.workers.rlm.config import RLMConfig
+from src.workers.rlm.integration import RLMIntegration, RLMIntegrationResult
 from src.workers.rlm.orchestrator import RLMOrchestrator
 from src.workers.rlm.trigger import RLMTriggerDetector, TriggerReason, TriggerResult
 from src.workers.rlm.models import (
@@ -40,6 +41,9 @@ __all__ = [
     "SubCallCache",
     # Config
     "RLMConfig",
+    # Integration
+    "RLMIntegration",
+    "RLMIntegrationResult",
     # Orchestrator
     "RLMOrchestrator",
     # Trigger
