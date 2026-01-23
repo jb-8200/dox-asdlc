@@ -10,6 +10,7 @@ from src.workers.rlm.agent import AgentIteration, RLMAgent
 from src.workers.rlm.budget_manager import BudgetSnapshot, SubCallBudgetManager
 from src.workers.rlm.cache import CacheEntry, CacheStats, SubCallCache
 from src.workers.rlm.config import RLMConfig
+from src.workers.rlm.orchestrator import RLMOrchestrator
 from src.workers.rlm.models import (
     Citation,
     ExplorationStep,
@@ -34,6 +35,8 @@ __all__ = [
     "SubCallCache",
     # Config
     "RLMConfig",
+    # Orchestrator
+    "RLMOrchestrator",
     # Models
     "Citation",
     "ExplorationStep",

@@ -159,18 +159,19 @@ Task breakdown for implementing the native RLM (Recursive LLM) exploration syste
 ### T09: Implement RLMOrchestrator
 
 **File:** `src/workers/rlm/orchestrator.py`
-**Test:** `tests/unit/test_rlm_orchestrator.py`
+**Test:** `tests/unit/rlm/test_rlm_orchestrator.py`
 
-- [ ] Create `RLMOrchestrator` class
-- [ ] Inject RLMAgent, BudgetManager, Cache
-- [ ] Implement `explore()` method with iteration loop
-- [ ] Implement timeout handling with asyncio.timeout
-- [ ] Handle budget exhaustion gracefully
-- [ ] Synthesize final result from findings
-- [ ] Generate citations from tool calls
-- [ ] Write unit tests
+- [x] Create `RLMOrchestrator` class
+- [x] Inject RLMAgent, BudgetManager, Cache
+- [x] Implement `explore()` method with iteration loop
+- [x] Implement timeout handling with asyncio.wait_for
+- [x] Handle budget exhaustion gracefully (returns partial results)
+- [x] Synthesize final result from findings
+- [x] Generate citations from tool calls
+- [x] Write unit tests (22 tests)
 
 **Estimate:** 2h
+**Status:** COMPLETE
 
 ---
 
@@ -259,11 +260,11 @@ Task breakdown for implementing the native RLM (Recursive LLM) exploration syste
 ## Progress
 
 - **Started**: 2026-01-23
-- **Tasks Complete**: 9/14
-- **Percentage**: 64%
+- **Tasks Complete**: 10/14
+- **Percentage**: 71%
 - **Status**: IN_PROGRESS
 - **Blockers**: None (P03-F01 and P03-F02 complete)
-- **Tests Passing**: 271 tests (243 + 28 new)
+- **Tests Passing**: 293 tests (271 + 22 new)
 
 ## Task Summary
 
@@ -277,6 +278,7 @@ Task breakdown for implementing the native RLM (Recursive LLM) exploration syste
 | T06 | LLM query tool | 1.5h | [x] |
 | T07 | REPLToolSurface registry | 30min | [x] |
 | T08 | RLMAgent | 2h | [x] |
+| T09 | RLMOrchestrator | 2h | [x] |
 | T08 | RLMAgent | 2h | [ ] |
 | T09 | RLMOrchestrator | 2h | [ ] |
 | T10 | Audit trail generation | 1h | [ ] |
