@@ -9,6 +9,7 @@
  * - Git Integration Panel
  */
 
+import { useNavigate } from 'react-router-dom';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import KPIHeader, { KPI } from '../components/cockpit/KPIHeader';
@@ -124,6 +125,20 @@ export default function CockpitPage({
   environments = defaultEnvironments,
   className,
 }: CockpitPageProps) {
+  const navigate = useNavigate();
+
+  // Default run click handler - navigate to run detail
+  const handleRunClick = (runId: string) => {
+    if (onRunClick) {
+      onRunClick(runId);
+    } else {
+      // Find the run to get the display runId
+      const run = runs.find((r) => r.id === runId);
+      if (run) {
+        navigate(`/cockpit/runs/${run.runId}`);
+      }
+    }
+  };
   // Loading state
   if (isLoading) {
     return (
@@ -246,7 +261,7 @@ export default function CockpitPage({
               <div className="p-4 border-b border-border-primary">
                 <h2 className="text-lg font-semibold text-text-primary">Recent Runs</h2>
               </div>
-              <RunsTable runs={runs} onRowClick={onRunClick} showFilters />
+              <RunsTable runs={runs} onRowClick={handleRunClick} showFilters />
             </div>
           </section>
 

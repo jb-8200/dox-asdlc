@@ -11,6 +11,14 @@ interface DecisionFormProps {
 }
 
 type DecisionType = 'approve' | 'reject' | null;
+type SeverityType = 'critical' | 'major' | 'minor' | 'trivial';
+
+const severityOptions: { value: SeverityType; label: string; description: string }[] = [
+  { value: 'critical', label: 'Critical', description: 'Blocks release, must be fixed immediately' },
+  { value: 'major', label: 'Major', description: 'Significant issue that should be addressed' },
+  { value: 'minor', label: 'Minor', description: 'Small issue, can be fixed later' },
+  { value: 'trivial', label: 'Trivial', description: 'Cosmetic or low-impact issue' },
+];
 
 export default function DecisionForm({
   gateId,
@@ -21,6 +29,7 @@ export default function DecisionForm({
   const [decision, setDecision] = useState<DecisionType>(null);
   const [feedback, setFeedback] = useState('');
   const [reason, setReason] = useState('');
+  const [severity, setSeverity] = useState<SeverityType>('major');
 
   const { mutate: submitDecision, isPending } = useGateDecision();
 
@@ -40,6 +49,7 @@ export default function DecisionForm({
         decision: decision,
         decided_by: 'operator', // TODO: Get from auth context
         reason: decision === 'reject' ? reason : undefined,
+        severity: decision === 'reject' ? severity : undefined,
         feedback: feedback || undefined,
       },
       {
@@ -86,27 +96,53 @@ export default function DecisionForm({
         </div>
       </div>
 
-      {/* Reason (required for rejection) */}
+      {/* Rejection Details */}
       {decision === 'reject' && (
-        <div>
-          <label
-            htmlFor="reason"
-            className="block text-sm font-medium text-text-primary mb-2"
-          >
-            Reason for Rejection <span className="text-status-error">*</span>
-          </label>
-          <textarea
-            id="reason"
-            rows={3}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Explain why this gate request is being rejected..."
-            className="input-field w-full resize-none"
-            required
-          />
-          <p className="mt-1 text-xs text-text-tertiary">
-            This will be shared with the submitting agent.
-          </p>
+        <div className="space-y-4">
+          {/* Severity Selection */}
+          <div>
+            <label
+              htmlFor="severity"
+              className="block text-sm font-medium text-text-primary mb-2"
+            >
+              Severity <span className="text-status-error">*</span>
+            </label>
+            <select
+              id="severity"
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value as SeverityType)}
+              className="input-field w-full"
+              data-testid="severity-select"
+            >
+              {severityOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label} - {opt.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reason */}
+          <div>
+            <label
+              htmlFor="reason"
+              className="block text-sm font-medium text-text-primary mb-2"
+            >
+              Reason for Rejection <span className="text-status-error">*</span>
+            </label>
+            <textarea
+              id="reason"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Explain why this gate request is being rejected..."
+              className="input-field w-full resize-none"
+              required
+            />
+            <p className="mt-1 text-xs text-text-tertiary">
+              This will be shared with the submitting agent.
+            </p>
+          </div>
         </div>
       )}
 

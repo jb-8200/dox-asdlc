@@ -15,6 +15,43 @@ import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 type TabType = 'explorer' | 'spec-index';
 
+// Mock artifacts data for development
+const mockArtifacts = [
+  {
+    id: 'art-001',
+    name: 'PRD-Authentication-Flow.md',
+    type: 'PRD',
+    epic: 'EPIC-101',
+    status: 'approved' as const,
+    createdAt: '2026-01-20T10:00:00Z',
+    approvedAt: '2026-01-21T14:00:00Z',
+    sha: 'abc123d',
+    agent: 'PRD Agent',
+    gate: 'gate_001',
+  },
+  {
+    id: 'art-002',
+    name: 'Design-System-Architecture.md',
+    type: 'Design',
+    epic: 'EPIC-101',
+    status: 'pending_review' as const,
+    createdAt: '2026-01-22T09:00:00Z',
+    sha: 'def456e',
+    agent: 'Architect Agent',
+    gate: 'gate_002',
+  },
+  {
+    id: 'art-003',
+    name: 'Unit-Tests-Auth-Module.ts',
+    type: 'Test',
+    epic: 'EPIC-102',
+    status: 'draft' as const,
+    createdAt: '2026-01-23T08:00:00Z',
+    sha: 'ghi789f',
+    agent: 'UTest Agent',
+  },
+];
+
 export default function ArtifactsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('explorer');
   const navigate = useNavigate();
@@ -116,7 +153,7 @@ export default function ArtifactsPage() {
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'explorer' ? (
-          <ArtifactExplorer onArtifactClick={handleArtifactClick} />
+          <ArtifactExplorer artifacts={mockArtifacts} onArtifactClick={handleArtifactClick} />
         ) : (
           <SpecIndexBrowser />
         )}
