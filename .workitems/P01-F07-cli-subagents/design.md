@@ -112,8 +112,8 @@ coord_publish_message(STATUS_UPDATE, "{role} complete", "{summary}", to="orchest
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `.claude/subagents/backend.md` | Create | Backend developer subagent |
-| `.claude/subagents/frontend.md` | Create | Frontend developer subagent |
-| `.claude/subagents/orchestrator.md` | Create | Coordinator subagent |
+| `.claude/agents/backend.md` | Create | Backend developer subagent |
+| `.claude/agents/frontend.md` | Create | Frontend developer subagent |
+| `.claude/agents/orchestrator.md` | Create | Coordinator subagent |
 | `CLAUDE.md` | Modify | Add subagent selection guide |
 | `scripts/hooks/session-start.py` | Modify | Simplify (remove identity prompt) |

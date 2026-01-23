@@ -52,7 +52,7 @@ The project uses role-specific subagents for domain-specific work. Each subagent
 │   ├── settings.json            # Claude Code settings
 │   ├── rules/                   # Development rules
 │   ├── skills/                  # Custom skills
-│   └── subagents/               # Subagent definitions
+│   └── agents/                  # Custom subagent definitions
 ├── .workitems/                  # Feature planning folders
 │   └── Pnn-Fnn-{description}/   # Per-feature planning
 │       ├── design.md            # Technical design

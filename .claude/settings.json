@@ -26,7 +26,7 @@
   "subagents": {
     "enabled": true,
     "maxConcurrent": 3,
-    "definitions": ".claude/subagents/"
+    "definitions": ".claude/agents/"
   },
   "hooks": {
     "SessionStart": [

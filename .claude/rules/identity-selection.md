@@ -77,7 +77,7 @@ Each role subagent has built-in Redis coordination:
 - Can publish BLOCKING_ISSUE to orchestrator when stuck
 - Acknowledges processed messages
 
-See `.claude/subagents/` for full subagent definitions.
+See `.claude/agents/` for full subagent definitions.
 
 ## Legacy: Interactive Selection (Deprecated)
 
