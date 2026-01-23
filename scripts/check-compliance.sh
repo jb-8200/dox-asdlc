@@ -33,6 +33,45 @@ PASS=0
 FAIL=0
 WARN=0
 
+# Auto-report branch violations to orchestrator via Redis
+report_branch_violation() {
+    local instance="$1"
+    local branch="$2"
+
+    REDIS_HOST="${REDIS_HOST:-localhost}"
+    REDIS_PORT="${REDIS_PORT:-6379}"
+
+    if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping 2>/dev/null | grep -q "PONG"; then
+        echo ""
+        echo -e "${YELLOW}Auto-reporting violation to orchestrator...${NC}"
+
+        # Use Python to publish via coordination client
+        export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH:-}"
+        python3 << PYEOF 2>/dev/null || true
+import asyncio
+from src.infrastructure.coordination import get_coordination_client
+from src.infrastructure.coordination.types import MessageType
+
+async def report():
+    try:
+        client = await get_coordination_client()
+        await client.publish_message(
+            msg_type=MessageType.BLOCKING_ISSUE,
+            subject="AUTO-DETECTED: Branch Violation",
+            description=f"Instance '{instance}' detected on unauthorized branch '{branch}'. Session start compliance check auto-reported this violation.",
+            from_instance="${instance}",
+            to_instance="orchestrator",
+            requires_ack=True,
+        )
+        print("  Violation reported to orchestrator")
+    except Exception as e:
+        print(f"  Failed to report: {e}")
+
+asyncio.run(report())
+PYEOF
+    fi
+}
+
 check() {
     local description="$1"
     local condition="$2"
@@ -97,7 +136,12 @@ check_session_start() {
         echo "  Instance: $CLAUDE_INSTANCE_ID"
     else
         check "CLAUDE_INSTANCE_ID is set" "false"
-        echo "  Run: source scripts/cli-identity.sh <ui|agent>"
+        echo -e "  ${RED}CRITICAL: Run: source scripts/cli-identity.sh <backend|frontend|orchestrator>${NC}"
+        echo ""
+        echo -e "  ${RED}========================================${NC}"
+        echo -e "  ${RED}BLOCKING: Cannot proceed without identity${NC}"
+        echo -e "  ${RED}========================================${NC}"
+        FAIL=$((FAIL + 1))
     fi
 
     # Check CLAUDE_BRANCH_PREFIX is set
@@ -105,7 +149,9 @@ check_session_start() {
         check "CLAUDE_BRANCH_PREFIX is set" "true"
         echo "  Branch prefix: $CLAUDE_BRANCH_PREFIX"
     else
-        check "CLAUDE_BRANCH_PREFIX is set" "false"
+        if [[ "${CLAUDE_INSTANCE_ID:-}" != "orchestrator" ]]; then
+            check "CLAUDE_BRANCH_PREFIX is set" "false"
+        fi
     fi
 
     echo ""
@@ -118,17 +164,52 @@ check_session_start() {
     if [[ -n "$CURRENT_BRANCH" ]]; then
         echo "  Current branch: $CURRENT_BRANCH"
 
-        if [[ -n "${CLAUDE_BRANCH_PREFIX:-}" ]]; then
+        # CRITICAL: Feature CLIs on main is a violation
+        if [[ "$CURRENT_BRANCH" == "main" ]]; then
+            case "${CLAUDE_INSTANCE_ID:-}" in
+                backend)
+                    echo ""
+                    echo -e "  ${RED}========================================${NC}"
+                    echo -e "  ${RED}CRITICAL VIOLATION: Backend on main!${NC}"
+                    echo -e "  ${RED}========================================${NC}"
+                    echo "  Backend CLI must use agent/* branches."
+                    echo "  Run: git checkout -b agent/<feature-name>"
+                    check "Not on main branch (backend)" "false"
+                    # Auto-report violation to orchestrator
+                    report_branch_violation "backend" "main"
+                    ;;
+                frontend)
+                    echo ""
+                    echo -e "  ${RED}========================================${NC}"
+                    echo -e "  ${RED}CRITICAL VIOLATION: Frontend on main!${NC}"
+                    echo -e "  ${RED}========================================${NC}"
+                    echo "  Frontend CLI must use ui/* branches."
+                    echo "  Run: git checkout -b ui/<feature-name>"
+                    check "Not on main branch (frontend)" "false"
+                    # Auto-report violation to orchestrator
+                    report_branch_violation "frontend" "main"
+                    ;;
+                orchestrator)
+                    check "On main branch (orchestrator)" "true"
+                    ;;
+                *)
+                    warn "On main branch - identity unknown"
+                    ;;
+            esac
+        elif [[ -n "${CLAUDE_BRANCH_PREFIX:-}" ]]; then
             if [[ "$CURRENT_BRANCH" == ${CLAUDE_BRANCH_PREFIX}* ]]; then
                 check "On correct branch for instance" "true"
-            elif [[ "$CURRENT_BRANCH" == "main" ]]; then
-                warn "On main branch - should switch to feature branch before coding"
             else
                 check "On correct branch for instance" "false"
                 echo "  Expected prefix: $CLAUDE_BRANCH_PREFIX"
+                report_branch_violation "${CLAUDE_INSTANCE_ID:-unknown}" "$CURRENT_BRANCH"
             fi
         else
-            warn "Cannot verify branch - CLAUDE_BRANCH_PREFIX not set"
+            if [[ "${CLAUDE_INSTANCE_ID:-}" == "orchestrator" ]]; then
+                check "On valid branch (orchestrator)" "true"
+            else
+                warn "Cannot verify branch - CLAUDE_BRANCH_PREFIX not set"
+            fi
         fi
     else
         warn "Not in a git repository or no branch checked out"
