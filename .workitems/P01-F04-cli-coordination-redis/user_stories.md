@@ -13,12 +13,12 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** I have type-safe access to message data across Python and bash
 
 **Acceptance Criteria:**
-- [ ] `CoordinationMessage` Pydantic model with all message fields
-- [ ] `MessageQuery` model for query parameters
-- [ ] `NotificationEvent` model for pub/sub events
-- [ ] `PresenceInfo` model for instance tracking
-- [ ] Models support JSON serialization for bash interop
-- [ ] All 16 message types are enumerated
+- [x] `CoordinationMessage` Pydantic model with all message fields
+- [x] `MessageQuery` model for query parameters
+- [x] `NotificationEvent` model for pub/sub events
+- [x] `PresenceInfo` model for instance tracking
+- [x] Models support JSON serialization for bash interop
+- [x] All 16 message types are enumerated
 
 **Priority:** High
 
@@ -31,13 +31,13 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** I can handle different failure modes appropriately
 
 **Acceptance Criteria:**
-- [ ] `CoordinationError` base exception exists
-- [ ] `MessageNotFoundError` for missing messages
-- [ ] `PublishError` for publishing failures
-- [ ] `AcknowledgeError` for acknowledgment failures
-- [ ] `PresenceError` for presence operation failures
-- [ ] All exceptions include helpful error messages
-- [ ] Exceptions inherit from `ASDLCError`
+- [x] `CoordinationError` base exception exists
+- [x] `MessageNotFoundError` for missing messages
+- [x] `PublishError` for publishing failures
+- [x] `AcknowledgeError` for acknowledgment failures
+- [x] `PresenceError` for presence operation failures
+- [x] All exceptions include helpful error messages
+- [x] Exceptions inherit from `ASDLCError`
 
 **Priority:** Medium
 
@@ -50,12 +50,12 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** concurrent writes never cause race conditions
 
 **Acceptance Criteria:**
-- [ ] `publish_message()` uses Redis pipeline with transaction
-- [ ] Message hash, timeline, inbox, and pending set updated atomically
-- [ ] Pub/sub notification sent within same transaction
-- [ ] Failed transactions roll back completely
-- [ ] Duplicate message IDs are rejected
-- [ ] Message timestamps use UTC
+- [x] `publish_message()` uses Redis pipeline with transaction
+- [x] Message hash, timeline, inbox, and pending set updated atomically
+- [x] Pub/sub notification sent within same transaction
+- [x] Failed transactions roll back completely
+- [x] Duplicate message IDs are rejected
+- [x] Message timestamps use UTC
 
 **Priority:** High
 
@@ -68,13 +68,13 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** I can find relevant messages quickly
 
 **Acceptance Criteria:**
-- [ ] `get_messages()` supports filtering by `to_instance`
-- [ ] Supports filtering by `from_instance`
-- [ ] Supports filtering by message `type`
-- [ ] Supports `pending_only` to show unacked messages
-- [ ] Supports `since` timestamp filter
-- [ ] Supports `limit` parameter
-- [ ] Query latency < 10ms for 100 messages
+- [x] `get_messages()` supports filtering by `to_instance`
+- [x] Supports filtering by `from_instance`
+- [x] Supports filtering by message `type`
+- [x] Supports `pending_only` to show unacked messages
+- [x] Supports `since` timestamp filter
+- [x] Supports `limit` parameter
+- [x] Query latency < 10ms for 100 messages
 
 **Priority:** High
 
@@ -87,12 +87,12 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** senders know their messages were received
 
 **Acceptance Criteria:**
-- [ ] `acknowledge_message()` updates message hash
-- [ ] Sets `acknowledged=true`, `ack_by`, `ack_timestamp`
-- [ ] Removes message from pending set
-- [ ] Optional `comment` field supported
-- [ ] Acknowledging already-acked message is idempotent
-- [ ] Returns false if message not found
+- [x] `acknowledge_message()` updates message hash
+- [x] Sets `acknowledged=true`, `ack_by`, `ack_timestamp`
+- [x] Removes message from pending set
+- [x] Optional `comment` field supported
+- [x] Acknowledging already-acked message is idempotent
+- [x] Returns false if message not found
 
 **Priority:** High
 
@@ -105,11 +105,11 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** I don't have to poll for new messages
 
 **Acceptance Criteria:**
-- [ ] `subscribe_notifications()` subscribes to instance channel
-- [ ] Notifications include message ID and type
-- [ ] Callback invoked within 1 second of publish
-- [ ] Supports both instance-specific and broadcast channels
-- [ ] Graceful handling of disconnection/reconnection
+- [x] `subscribe_notifications()` subscribes to instance channel
+- [x] Notifications include message ID and type
+- [x] Callback invoked within 1 second of publish
+- [x] Supports both instance-specific and broadcast channels
+- [x] Graceful handling of disconnection/reconnection
 
 **Priority:** Medium
 
@@ -122,11 +122,11 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** I can route messages to available instances
 
 **Acceptance Criteria:**
-- [ ] `register_instance()` records instance in presence hash
-- [ ] `heartbeat()` updates last activity timestamp
-- [ ] `get_presence()` returns all instance statuses
-- [ ] `unregister_instance()` removes from presence
-- [ ] Stale instances (no heartbeat in 5 min) marked inactive
+- [x] `register_instance()` records instance in presence hash
+- [x] `heartbeat()` updates last activity timestamp
+- [x] `get_presence()` returns all instance statuses
+- [x] `unregister_instance()` removes from presence
+- [x] Stale instances (no heartbeat in 5 min) marked inactive
 
 **Priority:** Low
 
@@ -139,33 +139,33 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** Claude can directly interact with the coordination system
 
 **Acceptance Criteria:**
-- [ ] MCP server exposes `coord_publish_message` tool
-- [ ] Exposes `coord_check_messages` tool
-- [ ] Exposes `coord_ack_message` tool
-- [ ] Exposes `coord_get_presence` tool
-- [ ] Server runs via stdio transport
-- [ ] Tool inputs/outputs match bash script interface
+- [x] MCP server exposes `coord_publish_message` tool
+- [x] Exposes `coord_check_messages` tool
+- [x] Exposes `coord_ack_message` tool
+- [x] Exposes `coord_get_presence` tool
+- [x] Server runs via stdio transport
+- [x] Tool inputs/outputs match bash script interface
 
 **Priority:** Medium
 
 ---
 
-### US-F04-09: Update Bash Scripts for Hybrid Mode
+### US-F04-09: Update Bash Scripts for Redis Backend
 
 **As a** CLI user
-**I want** bash scripts to use Redis when available
-**So that** I get performance benefits without breaking existing workflow
+**I want** bash scripts to use Redis for coordination
+**So that** I get performance benefits and atomic operations
 
 **Acceptance Criteria:**
-- [ ] `publish-message.sh` detects Redis availability
-- [ ] Falls back to filesystem if Redis unavailable
-- [ ] `check-messages.sh` uses Redis queries
-- [ ] Falls back to filesystem scan if Redis unavailable
-- [ ] `ack-message.sh` uses Redis acknowledgment
-- [ ] Falls back to filesystem if Redis unavailable
-- [ ] Output format unchanged (backward compatible)
+- [x] `publish-message.sh` requires Redis
+- [x] Fails fast with clear error if Redis unavailable
+- [x] `check-messages.sh` uses Redis queries
+- [x] `ack-message.sh` uses Redis acknowledgment
+- [x] Output format unchanged (backward compatible)
 
 **Priority:** High
+
+**Note:** Filesystem fallback removed in January 2026. Redis is now required.
 
 ---
 
@@ -176,11 +176,11 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** messages survive container restarts
 
 **Acceptance Criteria:**
-- [ ] `appendonly yes` enabled in redis.conf
-- [ ] `appendfsync everysec` for balance of durability/performance
-- [ ] RDB snapshots increased frequency
-- [ ] Max 1 second data loss on crash
-- [ ] Persistence verified after container restart
+- [x] `appendonly yes` enabled in redis.conf
+- [x] `appendfsync everysec` for balance of durability/performance
+- [x] RDB snapshots increased frequency
+- [x] Max 1 second data loss on crash
+- [x] Persistence verified after container restart
 
 **Priority:** High
 
@@ -193,12 +193,12 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** historical messages are available in the new system
 
 **Acceptance Criteria:**
-- [ ] Script reads all JSON files from `.claude/coordination/messages/`
-- [ ] Preserves original message IDs and timestamps
-- [ ] Preserves acknowledgment status
-- [ ] Supports dry-run mode for validation
-- [ ] Reports success/failure counts
-- [ ] Handles malformed JSON gracefully
+- [x] Script reads all JSON files from `.claude/coordination/messages/`
+- [x] Preserves original message IDs and timestamps
+- [x] Preserves acknowledgment status
+- [x] Supports dry-run mode for validation
+- [x] Reports success/failure counts
+- [x] Handles malformed JSON gracefully
 
 **Priority:** Medium
 
@@ -211,43 +211,45 @@ This feature implements infrastructure improvements for the multi-CLI coordinati
 **So that** I can trust the migration was successful
 
 **Acceptance Criteria:**
-- [ ] Script compares message counts
-- [ ] Compares message content
-- [ ] Reports discrepancies
-- [ ] Runs automatically after dual-write period
-- [ ] Returns exit code 0 only if parity achieved
+- [x] Script compares message counts
+- [x] Compares message content
+- [x] Reports discrepancies
+- [x] Runs automatically after dual-write period
+- [x] Returns exit code 0 only if parity achieved
 
 **Priority:** Low
+
+**Note:** Parity validation completed. Filesystem fallback removed in January 2026.
 
 ---
 
 ## Non-Functional Requirements
 
-### Performance
+### Performance ✅
 
 - Publish operations complete in < 5ms
 - Query operations complete in < 10ms for 100 messages
 - Real-time notifications delivered in < 1 second
 - System handles 10,000+ messages without degradation
 
-### Reliability
+### Reliability ✅
 
-- Redis unavailability triggers automatic filesystem fallback
+- Redis is required; scripts fail fast if unavailable
 - No message loss during normal operations
 - Max 1 second data loss on Redis crash (AOF)
-- Graceful degradation when MCP server unavailable
+- Graceful error messages when Redis unavailable
 
-### Compatibility
+### Compatibility ✅
 
 - Bash script interface unchanged
 - Output format backward compatible
 - Existing workflows continue to work
 - No changes required to CLI identity system
 
-### Maintainability
+### Maintainability ✅
 
 - Comprehensive test coverage (>80%)
-- Clear separation between Redis and filesystem code
+- Single backend (Redis) simplifies codebase
 - Factory pattern for dependency injection
 - Detailed logging for debugging
 

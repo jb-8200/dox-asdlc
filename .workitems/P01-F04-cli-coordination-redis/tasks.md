@@ -432,114 +432,113 @@ This task breakdown covers migrating the CLI coordination system from filesystem
 **Description**: Create common.sh with shared helper functions.
 
 **Subtasks**:
-- [ ] Create `scripts/coordination/lib/common.sh`
-- [ ] Implement `check_coordination_backend()` function
-- [ ] Implement `call_python_coordination()` function
-- [ ] Implement `emit_json()` helper
-- [ ] Implement logging helpers
+- [x] Create `scripts/coordination/lib/common.sh`
+- [x] Implement `check_redis_available()` function
+- [x] Implement `call_python_publish/check/ack()` functions
+- [x] Implement logging helpers
 
 **Acceptance Criteria**:
-- [ ] Backend detection works correctly
-- [ ] Python coordination callable from bash
-- [ ] JSON output helpers available
-- [ ] Logging consistent with existing scripts
+- [x] Redis availability check works correctly
+- [x] Python coordination callable from bash
+- [x] Logging consistent with existing scripts
 
 **Test Cases**:
-- [ ] Test backend detection with Redis available
-- [ ] Test backend detection with Redis unavailable
-- [ ] Test Python coordination call
+- [x] Test Redis availability check
+- [x] Test Python coordination calls
 
 **Estimate**: 45min
 
+**Note**: `check_coordination_backend()` removed in January 2026 refactor - Redis is now required.
+
 ---
 
-### T15: Update publish-message.sh for hybrid mode
+### T15: Update publish-message.sh for Redis
 
 **Model**: sonnet
-**Description**: Update publish script to use Redis with filesystem fallback.
+**Description**: Update publish script to use Redis backend (required).
 
 **Subtasks**:
-- [ ] Source common.sh helpers
-- [ ] Detect coordination backend
-- [ ] Implement Redis backend path (call Python)
-- [ ] Keep existing filesystem path as fallback
-- [ ] Ensure output format unchanged
-- [ ] Write integration tests
+- [x] Source common.sh helpers
+- [x] Check Redis availability (fail if unavailable)
+- [x] Implement Redis backend path (call Python)
+- [x] Ensure output format unchanged
+- [x] Write integration tests
 
 **Acceptance Criteria**:
-- [ ] Script detects and uses Redis when available
-- [ ] Falls back to filesystem when Redis unavailable
-- [ ] Output format identical to current
-- [ ] Exit codes unchanged
-- [ ] Integration tests verify both paths
+- [x] Script uses Redis backend
+- [x] Fails fast with error if Redis unavailable
+- [x] Output format identical to original
+- [x] Exit codes correct
+- [x] Integration tests pass
 
 **Test Cases**:
-- [ ] Test publish with Redis backend
-- [ ] Test publish with filesystem fallback
-- [ ] Test output format compatibility
-- [ ] Test error handling
+- [x] Test publish with Redis backend
+- [x] Test error handling for Redis unavailable
+- [x] Test output format compatibility
 
 **Estimate**: 1hr
 
+**Note**: Filesystem fallback removed in January 2026 refactor.
+
 ---
 
-### T16: Update check-messages.sh for hybrid mode
+### T16: Update check-messages.sh for Redis
 
 **Model**: sonnet
-**Description**: Update check script to use Redis with filesystem fallback.
+**Description**: Update check script to use Redis backend (required).
 
 **Subtasks**:
-- [ ] Source common.sh helpers
-- [ ] Detect coordination backend
-- [ ] Implement Redis backend path (call Python)
-- [ ] Keep existing filesystem path as fallback
-- [ ] Ensure output format unchanged
-- [ ] Write integration tests
+- [x] Source common.sh helpers
+- [x] Check Redis availability (fail if unavailable)
+- [x] Implement Redis backend path (call Python)
+- [x] Ensure output format unchanged
+- [x] Write integration tests
 
 **Acceptance Criteria**:
-- [ ] Script detects and uses Redis when available
-- [ ] Falls back to filesystem when Redis unavailable
-- [ ] All filter flags work with both backends
-- [ ] Output format identical to current
-- [ ] Integration tests verify both paths
+- [x] Script uses Redis backend
+- [x] Fails fast with error if Redis unavailable
+- [x] All filter flags work
+- [x] Output format identical to original
+- [x] Integration tests pass
 
 **Test Cases**:
-- [ ] Test check with Redis backend
-- [ ] Test check with filesystem fallback
-- [ ] Test filter flags
-- [ ] Test output format compatibility
+- [x] Test check with Redis backend
+- [x] Test filter flags (--pending, --all, --from, --type)
+- [x] Test output format compatibility
 
 **Estimate**: 1hr
 
+**Note**: Filesystem fallback removed in January 2026 refactor.
+
 ---
 
-### T17: Update ack-message.sh for hybrid mode
+### T17: Update ack-message.sh for Redis
 
 **Model**: haiku
-**Description**: Update ack script to use Redis with filesystem fallback.
+**Description**: Update ack script to use Redis backend (required).
 
 **Subtasks**:
-- [ ] Source common.sh helpers
-- [ ] Detect coordination backend
-- [ ] Implement Redis backend path (call Python)
-- [ ] Keep existing filesystem path as fallback
-- [ ] Ensure output format unchanged
-- [ ] Write integration tests
+- [x] Source common.sh helpers
+- [x] Check Redis availability (fail if unavailable)
+- [x] Implement Redis backend path (call Python)
+- [x] Ensure output format unchanged
+- [x] Write integration tests
 
 **Acceptance Criteria**:
-- [ ] Script detects and uses Redis when available
-- [ ] Falls back to filesystem when Redis unavailable
-- [ ] Output format identical to current
-- [ ] Exit codes unchanged
-- [ ] Integration tests verify both paths
+- [x] Script uses Redis backend
+- [x] Fails fast with error if Redis unavailable
+- [x] Output format identical to original
+- [x] Exit codes correct
+- [x] Integration tests pass
 
 **Test Cases**:
-- [ ] Test ack with Redis backend
-- [ ] Test ack with filesystem fallback
-- [ ] Test already-acked message
-- [ ] Test non-existent message
+- [x] Test ack with Redis backend
+- [x] Test already-acked message (idempotent)
+- [x] Test non-existent message
 
 **Estimate**: 45min
+
+**Note**: Filesystem fallback removed in January 2026 refactor.
 
 ---
 
@@ -665,30 +664,29 @@ This task breakdown covers migrating the CLI coordination system from filesystem
 ### T22: Write bash script integration tests
 
 **Model**: haiku
-**Description**: Create integration tests for hybrid bash scripts.
+**Description**: Create integration tests for bash scripts (Redis backend).
 
 **Subtasks**:
-- [ ] Create `tests/integration/scripts/test_coordination_scripts.sh`
-- [ ] Test hybrid mode detection
-- [ ] Test fallback to filesystem
-- [ ] Validate output format matches existing
-- [ ] Test all three scripts
+- [x] Create `tests/integration/scripts/test_coordination_scripts.sh`
+- [x] Test Redis availability check
+- [x] Validate output format matches expected
+- [x] Test all three scripts
 
 **Acceptance Criteria**:
-- [ ] Scripts work with Redis available
-- [ ] Scripts work with Redis unavailable (fallback)
-- [ ] Output format backward compatible
-- [ ] Exit codes correct
+- [x] Scripts work with Redis available
+- [x] Scripts fail gracefully when Redis unavailable
+- [x] Output format backward compatible
+- [x] Exit codes correct
 
 **Test Cases**:
-- [ ] Test publish with Redis
-- [ ] Test publish fallback
-- [ ] Test check with Redis
-- [ ] Test check fallback
-- [ ] Test ack with Redis
-- [ ] Test ack fallback
+- [x] Test publish with Redis
+- [x] Test check with Redis
+- [x] Test ack with Redis
+- [x] Test error handling for Redis unavailable
 
 **Estimate**: 1hr
+
+**Note**: Filesystem fallback tests removed - Redis is now required.
 
 ---
 
@@ -821,7 +819,11 @@ All ──► T23
 - Bash tests verify hybrid mode and fallback
 - MCP tests verify tool contracts match bash interface
 
-### Rollout Phases
+### Rollout History
 
-Phase 1 corresponds to tasks T01-T23 (deploy parallel mode)
-Phase 2-4 are operational procedures after code is complete
+- **Phase 1** (T01-T23): Deploy Redis coordination with hybrid mode ✅
+- **Phase 2**: Dual-write validation ✅
+- **Phase 3**: Read from Redis ✅
+- **Phase 4**: Redis-only mode ✅ (January 2026)
+
+All phases complete. Filesystem fallback removed in commit c3876e1.
