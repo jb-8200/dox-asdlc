@@ -9,7 +9,6 @@ import {
   Suspense,
   useState,
   useCallback,
-  useMemo,
   useEffect,
   useRef,
   ReactNode,
@@ -128,7 +127,6 @@ export function useVirtualScroll({
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
 
-  const visibleCount = Math.ceil(containerHeight / itemHeight);
   const totalHeight = itemCount * itemHeight;
 
   const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
@@ -248,7 +246,7 @@ export function useRenderTime(componentName: string): void {
     const timeSinceLastRender = now - lastRenderTimeRef.current;
     lastRenderTimeRef.current = now;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log(
         `[${componentName}] Render #${renderCountRef.current}, ` +
           `time since last: ${timeSinceLastRender.toFixed(2)}ms`
@@ -302,7 +300,7 @@ export function useCleanup(cleanup: () => void): void {
 export function useMemoryWarning(threshold: number = 100_000_000): void {
   useEffect(() => {
     if (
-      process.env.NODE_ENV === 'development' &&
+      import.meta.env.DEV &&
       'memory' in performance
     ) {
       const checkMemory = () => {

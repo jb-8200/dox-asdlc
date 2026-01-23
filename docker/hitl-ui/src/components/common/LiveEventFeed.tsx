@@ -58,7 +58,7 @@ function getEventColor(type: string): string {
 
 // Get event description
 function getEventDescription(event: SystemEvent): string {
-  const { type, data = {} } = event;
+  const { type, metadata: data = {} } = event;
 
   switch (type) {
     case 'session.started':
@@ -283,7 +283,7 @@ export default function LiveEventFeed({
   // Render single event
   const renderEvent = (event: SystemEvent) => {
     const isExpanded = expandedEvents.has(event.id);
-    const hasMetadata = event.data && Object.keys(event.data).length > 0;
+    const hasMetadata = event.metadata && Object.keys(event.metadata).length > 0;
 
     return (
       <div
@@ -328,7 +328,7 @@ export default function LiveEventFeed({
         {isExpanded && hasMetadata && (
           <div className="px-3 pb-2 pl-9">
             <pre className="text-xs bg-bg-tertiary rounded p-2 overflow-x-auto text-text-secondary">
-              {JSON.stringify(event.data, null, 2)}
+              {JSON.stringify(event.metadata, null, 2)}
             </pre>
           </div>
         )}

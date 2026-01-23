@@ -14,7 +14,7 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
-import { extractTableOfContents, type TocEntry } from '../../utils/markdown';
+import { extractTableOfContents } from '../../utils/markdown';
 
 // Load Prism languages
 import 'prismjs/components/prism-javascript';
