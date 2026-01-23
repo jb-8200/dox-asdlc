@@ -27,5 +27,29 @@
     "enabled": true,
     "maxConcurrent": 3,
     "definitions": ".claude/subagents/"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python3 scripts/hooks/session-start.py",
+        "timeout": 10000
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "python3 scripts/hooks/prompt-validator.py",
+        "timeout": 5000
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|Bash",
+        "type": "command",
+        "command": "python3 scripts/hooks/tool-validator.py",
+        "timeout": 5000
+      }
+    ]
   }
 }

@@ -40,37 +40,36 @@ These rules govern how the three Claude CLI instances work simultaneously on thi
 
 ---
 
-## MANDATORY: Session Start Checklist
+## MANDATORY: Session Start - Use Launcher Scripts
 
-**Run this BEFORE any other work:**
+**ALWAYS start Claude Code using the appropriate launcher script:**
 
 ```bash
-./scripts/check-compliance.sh --session-start
+# For backend development (workers, orchestrator, infrastructure)
+./start-backend.sh
+
+# For frontend development (HITL Web UI)
+./start-frontend.sh
+
+# For review/merge operations (orchestrator only)
+./start-orchestrator.sh
 ```
 
-**If this fails, DO NOT proceed. Fix compliance issues first.**
+**Why launchers are required:**
+- They create `.claude/instance-identity.json` with role-specific permissions
+- They set git user.name/email for commit attribution
+- Claude Code hooks read this file to enforce branch and path restrictions
+- Environment variables don't persist across Claude bash sessions, but the identity file does
 
-The session start check verifies:
-- `CLAUDE_INSTANCE_ID` is set
-- You are on the correct branch for your instance
-- No pending coordination messages require acknowledgment
-- No file locks conflict with your planned work
+**If you start Claude without a launcher:**
+- The `UserPromptSubmit` hook will **BLOCK** all prompts
+- You'll see: "BLOCKED: NO LAUNCHER USED"
+- Exit and restart using the correct launcher
 
-**Manual verification (if script unavailable):**
-```bash
-# 1. Verify identity
-echo "Instance: $CLAUDE_INSTANCE_ID, Branch Prefix: $CLAUDE_BRANCH_PREFIX"
-[ -z "$CLAUDE_INSTANCE_ID" ] && echo "ERROR: Run 'source scripts/cli-identity.sh <backend|frontend|orchestrator>' first"
-
-# 2. Verify branch (feature CLIs only)
-git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}" || echo "ERROR: Wrong branch!"
-
-# 3. Check coordination messages
-./scripts/coordination/check-messages.sh
-
-# 4. Acknowledge any pending messages BEFORE starting work
-./scripts/coordination/ack-message.sh <message-id>
-```
+**The launcher script automatically:**
+- Verifies you are on the correct branch (warns if not)
+- Displays your role permissions
+- Configures identity for all enforcement layers
 
 ---
 
@@ -108,20 +107,26 @@ git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}" || echo "ERROR: Wron
 
 ---
 
-## Rule 1: Instance Identity
+## Rule 1: Instance Identity (Enforced via Launcher Scripts)
 
-**BEFORE starting any work, verify your instance identity:**
+**Identity is automatically set when you use a launcher script:**
 
 ```bash
-echo $CLAUDE_INSTANCE_ID
+./start-backend.sh      # Sets identity: backend
+./start-frontend.sh     # Sets identity: frontend
+./start-orchestrator.sh # Sets identity: orchestrator
 ```
 
-If not set, run:
-```bash
-source scripts/cli-identity.sh <backend|frontend|orchestrator>
-```
+The identity file at `.claude/instance-identity.json` determines:
+- Which files you can modify
+- Which branches you can commit to
+- Whether you can merge to main
 
-Your identity determines which files you can modify and which branches you can commit to.
+**Enforcement layers:**
+1. `SessionStart` hook - displays role and warns on branch mismatch
+2. `UserPromptSubmit` hook - **BLOCKS** if no identity or wrong branch
+3. `PreToolUse` hook - **BLOCKS** forbidden file edits and git operations
+4. `pre-commit` hook - **BLOCKS** commits to wrong branches
 
 ## Rule 2: Branch Discipline
 
@@ -190,15 +195,19 @@ git branch --show-current | grep "^${CLAUDE_BRANCH_PREFIX}"
 
 **For Backend-CLI and Frontend-CLI:**
 
-1. **Start Session:**
+1. **Start Session (use launcher script):**
    ```bash
-   source scripts/cli-identity.sh backend  # or frontend
-   ./scripts/check-compliance.sh --session-start
+   ./start-backend.sh   # For backend development
+   # OR
+   ./start-frontend.sh  # For frontend development
    ```
 
-2. **Work on Feature Branch:**
+2. **Work on Feature Branch (inside Claude Code):**
    ```bash
-   git checkout -b agent/P03-F01-feature-name  # or ui/...
+   git checkout -b agent/P03-F01-feature-name  # Backend: agent/*
+   # OR
+   git checkout -b ui/P05-F01-feature-name     # Frontend: ui/*
+
    # Develop feature with TDD
    # Run local tests: ./tools/test.sh
    # Run linter: ./tools/lint.sh
@@ -347,12 +356,10 @@ When Backend-CLI delivers real implementation, mocks are swapped seamlessly.
 
 1. Commit all completed work to your branch
 2. Update task progress in `.workitems/`
-3. Update status file:
-   ```bash
-   source scripts/cli-identity.sh deactivate
-   ```
-4. Check for any unanswered coordination messages
-5. Leave clear notes in `tasks.md` for resumption
+3. Check for any unanswered coordination messages
+4. Leave clear notes in `tasks.md` for resumption
+
+**Note:** The identity file (`.claude/instance-identity.json`) persists until overwritten by the next launcher script. This is intentional - it prevents commits outside of Claude Code sessions from bypassing restrictions.
 
 ---
 
@@ -360,8 +367,11 @@ When Backend-CLI delivers real implementation, mocks are swapped seamlessly.
 
 ### Backend-CLI: Complete a Feature
 ```bash
-source scripts/cli-identity.sh backend
-./scripts/check-compliance.sh --session-start
+# Start session (from project root)
+./start-backend.sh
+
+# Inside Claude Code session:
+git checkout -b agent/P03-F01-feature-name
 # ... develop feature ...
 ./tools/test.sh && ./tools/lint.sh
 ./scripts/coordination/publish-message.sh READY_FOR_REVIEW "agent/P03-F01" "Complete"
@@ -370,8 +380,11 @@ source scripts/cli-identity.sh backend
 
 ### Frontend-CLI: Complete a Feature
 ```bash
-source scripts/cli-identity.sh frontend
-./scripts/check-compliance.sh --session-start
+# Start session (from project root)
+./start-frontend.sh
+
+# Inside Claude Code session:
+git checkout -b ui/P05-F01-feature-name
 # ... develop feature ...
 ./tools/test.sh && ./tools/lint.sh
 ./scripts/coordination/publish-message.sh READY_FOR_REVIEW "ui/P05-F01" "Complete"
@@ -380,10 +393,26 @@ source scripts/cli-identity.sh frontend
 
 ### Orchestrator-CLI: Review and Merge
 ```bash
-source scripts/cli-identity.sh orchestrator
+# Start session (from project root)
+./start-orchestrator.sh
+
+# Inside Claude Code session:
 ./scripts/coordination/check-messages.sh --reviews
 ./scripts/orchestrator/review-branch.sh agent/P03-F01
 # If review passes:
 ./scripts/orchestrator/merge-branch.sh agent/P03-F01
 ./scripts/coordination/publish-message.sh REVIEW_COMPLETE "agent/P03-F01" "Merged as abc123" --to backend
 ```
+
+---
+
+## Identity Enforcement Summary
+
+| Layer | Hook/Script | What It Does | Blocking? |
+|-------|-------------|--------------|-----------|
+| 1 | `SessionStart` | Displays role, warns on branch mismatch | No (warning only) |
+| 2 | `UserPromptSubmit` | Checks identity file and branch | **Yes** |
+| 3 | `PreToolUse` | Checks path permissions and git ops | **Yes** |
+| 4 | `pre-commit` | Final branch validation before commit | **Yes** |
+
+See `.claude/coordination/README.md` for detailed troubleshooting.

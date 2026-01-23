@@ -46,6 +46,9 @@ logs/
 # Claude Code local settings (user-specific permissions)
 .claude/settings.local.json
 
+# CLI instance identity (session-specific, created by launcher scripts)
+.claude/instance-identity.json
+
 # Coordination runtime files (now in Redis)
 .claude/coordination/messages/
 .claude/coordination/pending-acks/
