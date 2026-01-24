@@ -2,13 +2,14 @@
  * DiagramGallery - Responsive grid gallery for diagram thumbnails
  *
  * Displays diagrams in a filterable, keyboard-navigable grid with
- * category filtering and card selection.
+ * category filtering, card selection, and lazy-loaded thumbnail previews.
  */
 
 import { useState, useCallback } from 'react';
 import clsx from 'clsx';
 import type { DiagramMeta, DiagramCategory } from '../../api/types';
 import { categoryColors } from './constants';
+import DiagramThumbnail from './DiagramThumbnail';
 
 export interface DiagramGalleryProps {
   /** Diagrams to display */
@@ -17,6 +18,8 @@ export interface DiagramGalleryProps {
   onSelect: (diagramId: string) => void;
   /** Custom class name */
   className?: string;
+  /** Map of diagram ID to mermaid content for thumbnails */
+  diagramContents?: Map<string, string>;
 }
 
 /** Category filter options */
@@ -28,15 +31,43 @@ const categoryFilters: Array<{ value: DiagramCategory | 'all'; label: string }> 
   { value: 'decision', label: 'Decision' },
 ];
 
+/** Placeholder icon for diagrams without content */
+function PlaceholderIcon({ diagramId }: { diagramId: string }) {
+  return (
+    <div
+      className="text-text-muted text-sm h-full w-full flex items-center justify-center"
+      data-testid={`thumbnail-placeholder-${diagramId}`}
+    >
+      <svg
+        className="h-12 w-12 mx-auto mb-1 opacity-50"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1}
+      >
+        <rect x="3" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="8.5" y="16" width="7" height="5" rx="1" />
+        <line x1="6.5" y1="8" x2="6.5" y2="11" />
+        <line x1="17.5" y1="8" x2="17.5" y2="11" />
+        <line x1="6.5" y1="11" x2="17.5" y2="11" />
+        <line x1="12" y1="11" x2="12" y2="16" />
+      </svg>
+    </div>
+  );
+}
+
 /**
  * DiagramGallery component
  *
  * Grid layout with responsive columns, category filtering, and keyboard navigation.
+ * Supports lazy-loaded thumbnail previews when diagram contents are provided.
  */
 export default function DiagramGallery({
   diagrams,
   onSelect,
   className,
+  diagramContents,
 }: DiagramGalleryProps) {
   const [activeFilter, setActiveFilter] = useState<DiagramCategory | 'all'>('all');
 
@@ -93,62 +124,62 @@ export default function DiagramGallery({
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
           data-testid="diagram-grid"
         >
-          {filteredDiagrams.map((diagram) => (
-            <div
-              key={diagram.id}
-              className={clsx(
-                'group bg-bg-secondary rounded-lg border border-border-primary',
-                'hover:border-accent-blue hover:shadow-md transition-all cursor-pointer'
-              )}
-              onClick={() => handleCardClick(diagram.id)}
-              onKeyDown={(e) => handleCardKeyDown(e, diagram.id)}
-              tabIndex={0}
-              role="button"
-              data-testid={`diagram-card-${diagram.id}`}
-            >
-              {/* Thumbnail placeholder */}
-              <div className="aspect-video bg-bg-tertiary rounded-t-lg flex items-center justify-center">
-                <div className="text-text-muted text-sm">
-                  {/* Simplified diagram icon */}
-                  <svg
-                    className="h-12 w-12 mx-auto mb-1 opacity-50"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1}
-                  >
-                    <rect x="3" y="3" width="7" height="5" rx="1" />
-                    <rect x="14" y="3" width="7" height="5" rx="1" />
-                    <rect x="8.5" y="16" width="7" height="5" rx="1" />
-                    <line x1="6.5" y1="8" x2="6.5" y2="11" />
-                    <line x1="17.5" y1="8" x2="17.5" y2="11" />
-                    <line x1="6.5" y1="11" x2="17.5" y2="11" />
-                    <line x1="12" y1="11" x2="12" y2="16" />
-                  </svg>
+          {filteredDiagrams.map((diagram) => {
+            const content = diagramContents?.get(diagram.id);
+            
+            return (
+              <div
+                key={diagram.id}
+                className={clsx(
+                  'group bg-bg-secondary rounded-lg border border-border-primary',
+                  'hover:border-accent-blue hover:shadow-md transition-all cursor-pointer'
+                )}
+                onClick={() => handleCardClick(diagram.id)}
+                onKeyDown={(e) => handleCardKeyDown(e, diagram.id)}
+                tabIndex={0}
+                role="button"
+                data-testid={`diagram-card-${diagram.id}`}
+              >
+                {/* Thumbnail area */}
+                <div
+                  className="aspect-video bg-bg-tertiary rounded-t-lg overflow-hidden"
+                  data-testid={`thumbnail-area-${diagram.id}`}
+                >
+                  {content ? (
+                    <DiagramThumbnail
+                      content={content}
+                      diagramId={diagram.id}
+                      scale={0.4}
+                      className="h-full w-full"
+                      ariaLabel={`${diagram.title} preview`}
+                    />
+                  ) : (
+                    <PlaceholderIcon diagramId={diagram.id} />
+                  )}
                 </div>
-              </div>
 
-              {/* Card content */}
-              <div className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-medium text-text-primary group-hover:text-accent-blue transition-colors line-clamp-1">
-                    {diagram.title}
-                  </h3>
-                  <span
-                    className={clsx(
-                      'px-1.5 py-0.5 text-xs font-medium rounded border flex-shrink-0',
-                      categoryColors[diagram.category]
-                    )}
-                  >
-                    {diagram.category}
-                  </span>
+                {/* Card content */}
+                <div className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-medium text-text-primary group-hover:text-accent-blue transition-colors line-clamp-1">
+                      {diagram.title}
+                    </h3>
+                    <span
+                      className={clsx(
+                        'px-1.5 py-0.5 text-xs font-medium rounded border flex-shrink-0',
+                        categoryColors[diagram.category]
+                      )}
+                    >
+                      {diagram.category}
+                    </span>
+                  </div>
+                  <p className="text-sm text-text-secondary mt-1 line-clamp-2">
+                    {diagram.description}
+                  </p>
                 </div>
-                <p className="text-sm text-text-secondary mt-1 line-clamp-2">
-                  {diagram.description}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         // Empty state

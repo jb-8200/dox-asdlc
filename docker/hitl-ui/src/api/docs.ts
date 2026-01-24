@@ -5,7 +5,7 @@
  * and mock fallback support.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { apiClient } from './client';
 import type {
   DocumentMeta,
@@ -159,5 +159,39 @@ export function useDiagramsByCategory(category: DiagramMeta['category']) {
   return {
     data: filteredDiagrams,
     ...rest,
+  };
+}
+
+/**
+ * Hook to fetch multiple diagram contents in parallel
+ *
+ * Returns a Map of diagram ID to content for batch fetching
+ * diagram content for gallery thumbnails.
+ */
+export function useDiagramContents(diagramIds: string[]) {
+  const results = useQueries({
+    queries: diagramIds.map((id) => ({
+      queryKey: ['diagram', id],
+      queryFn: () => getDiagram(id),
+      staleTime: DOCS_STALE_TIME,
+    })),
+  });
+
+  // Combine results into a Map
+  const data = new Map<string, string>();
+  const isLoading = results.some((result) => result.isLoading);
+  const isError = results.some((result) => result.isError);
+
+  results.forEach((result, index) => {
+    if (result.data?.content) {
+      data.set(diagramIds[index], result.data.content);
+    }
+  });
+
+  return {
+    data,
+    isLoading,
+    isError,
+    results,
   };
 }

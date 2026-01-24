@@ -2,10 +2,39 @@
  * Tests for DiagramGallery component
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DiagramGallery from './DiagramGallery';
 import type { DiagramMeta } from '../../api/types';
+
+// Mock mermaid module (used by DiagramThumbnail)
+vi.mock('mermaid', () => ({
+  default: {
+    initialize: vi.fn(),
+    render: vi.fn().mockResolvedValue({
+      svg: '<svg><g>Test SVG</g></svg>',
+    }),
+  },
+}));
+
+// Mock IntersectionObserver for DiagramThumbnail
+const mockObserve = vi.fn();
+const mockUnobserve = vi.fn();
+const mockDisconnect = vi.fn();
+
+beforeEach(() => {
+  const mockIntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: mockObserve,
+    unobserve: mockUnobserve,
+    disconnect: mockDisconnect,
+  }));
+  window.IntersectionObserver = mockIntersectionObserver as unknown as typeof IntersectionObserver;
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
 
 const mockDiagrams: DiagramMeta[] = [
   {
@@ -251,5 +280,52 @@ describe('DiagramGallery', () => {
       expect(screen.getByTestId('filter-all')).toHaveAttribute('aria-pressed', 'false');
       expect(screen.getByTestId('filter-architecture')).toHaveAttribute('aria-pressed', 'true');
     });
+  });
+});
+
+// ============================================================================
+// Thumbnail Integration Tests
+// ============================================================================
+
+describe('Thumbnail Integration', () => {
+  it('renders thumbnail area for each diagram card', () => {
+    render(<DiagramGallery diagrams={mockDiagrams} onSelect={vi.fn()} />);
+    
+    // Each card should have a thumbnail area
+    const thumbnailAreas = screen.getAllByTestId(/^thumbnail-area-/);
+    expect(thumbnailAreas.length).toBe(5);
+  });
+
+  it('includes diagram ID in thumbnail area test ID', () => {
+    render(<DiagramGallery diagrams={mockDiagrams} onSelect={vi.fn()} />);
+    
+    expect(screen.getByTestId('thumbnail-area-01-system-architecture')).toBeInTheDocument();
+    expect(screen.getByTestId('thumbnail-area-03-discovery-flow')).toBeInTheDocument();
+  });
+
+  it('passes content map prop when provided', () => {
+    const contentMap = new Map([
+      ['01-system-architecture', 'graph TD; A-->B'],
+      ['02-container-topology', 'graph LR; C-->D'],
+    ]);
+
+    render(
+      <DiagramGallery 
+        diagrams={mockDiagrams} 
+        onSelect={vi.fn()} 
+        diagramContents={contentMap}
+      />
+    );
+    
+    // Should still render cards
+    expect(screen.getAllByTestId(/^diagram-card-/)).toHaveLength(5);
+  });
+
+  it('shows placeholder when content not available', () => {
+    render(<DiagramGallery diagrams={mockDiagrams} onSelect={vi.fn()} />);
+    
+    // Without content map, all should show placeholder
+    const placeholders = screen.getAllByTestId(/^thumbnail-placeholder-/);
+    expect(placeholders.length).toBeGreaterThan(0);
   });
 });
