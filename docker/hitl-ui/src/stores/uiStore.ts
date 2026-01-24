@@ -11,6 +11,17 @@ const getStoredTheme = (): 'light' | 'dark' => {
   return 'dark';
 };
 
+// Apply initial theme class on load to prevent flash
+const initializeTheme = () => {
+  const theme = getStoredTheme();
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }
+  return theme;
+};
+
+const initialTheme = initializeTheme();
+
 interface UIState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -41,8 +52,8 @@ export const useUIStore = create<UIState>((set, get) => ({
   closeDecisionModal: () =>
     set({ isDecisionModalOpen: false, selectedGateId: null }),
 
-  // Theme state - default to dark, check localStorage
-  theme: getStoredTheme(),
+  // Theme state - initialized on module load to prevent flash
+  theme: initialTheme,
   setTheme: (theme) => {
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.setItem('theme', theme);

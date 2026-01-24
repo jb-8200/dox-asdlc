@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,19 +8,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary background colors
-        'bg-primary': '#030303',
-        'bg-secondary': '#0a0a0a',
-        'bg-tertiary': '#141414',
+        // Primary background colors (using CSS variables for theme support)
+        'bg-primary': 'var(--bg-primary)',
+        'bg-secondary': 'var(--bg-secondary)',
+        'bg-tertiary': 'var(--bg-tertiary)',
 
         // Accent colors
-        'accent-teal': '#1E5160',
-        'accent-teal-light': '#2A7A8C',
+        'accent-teal': 'var(--accent-teal)',
+        'accent-teal-light': 'var(--accent-teal-light)',
 
         // Text colors
-        'text-primary': '#FBFCFC',
-        'text-secondary': '#A09E9D',
-        'text-tertiary': '#4A4A4A',
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
+        'text-tertiary': 'var(--text-tertiary)',
 
         // Status colors
         'status-success': '#22C55E',

@@ -2,8 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom CSS Variables */
+/* Custom CSS Variables - Light Mode (default) */
 :root {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8FAFC;
+  --bg-tertiary: #E2E8F0;
+  --accent-teal: #0D9488;
+  --accent-teal-light: #14B8A6;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-tertiary: #94A3B8;
+  --status-success: #22C55E;
+  --status-warning: #F59E0B;
+  --status-error: #EF4444;
+  --status-info: #3B82F6;
+}
+
+/* Dark Mode */
+.dark {
   --bg-primary: #030303;
   --bg-secondary: #0a0a0a;
   --bg-tertiary: #141414;
@@ -12,10 +28,6 @@
   --text-primary: #FBFCFC;
   --text-secondary: #A09E9D;
   --text-tertiary: #4A4A4A;
-  --status-success: #22C55E;
-  --status-warning: #F59E0B;
-  --status-error: #EF4444;
-  --status-info: #3B82F6;
 }
 
 /* Base styles */

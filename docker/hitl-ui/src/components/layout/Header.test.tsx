@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import Header from './Header';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useTenantStore } from '@/stores/tenantStore';
+import { useUIStore } from '@/stores/uiStore';
 
 // Mock the stores
 vi.mock('@/stores/sessionStore', () => ({
@@ -12,6 +13,10 @@ vi.mock('@/stores/sessionStore', () => ({
 
 vi.mock('@/stores/tenantStore', () => ({
   useTenantStore: vi.fn(),
+}));
+
+vi.mock('@/stores/uiStore', () => ({
+  useUIStore: vi.fn(),
 }));
 
 const mockSessionStore = {
@@ -32,6 +37,11 @@ const mockTenantStore = {
   multiTenancyEnabled: false,
 };
 
+const mockUIStore = {
+  theme: 'dark' as const,
+  toggleTheme: vi.fn(),
+};
+
 function renderWithRouter(component: React.ReactElement, initialRoute = '/') {
   return render(
     <MemoryRouter initialEntries={[initialRoute]}>
@@ -45,6 +55,7 @@ describe('Header', () => {
     vi.clearAllMocks();
     (useSessionStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockSessionStore);
     (useTenantStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockTenantStore);
+    (useUIStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockUIStore);
   });
 
   it('renders the page title based on route', () => {
@@ -190,5 +201,48 @@ describe('Header', () => {
     expect(await screen.findByText('tenant-a')).toBeInTheDocument();
     expect(await screen.findByText('tenant-b')).toBeInTheDocument();
     expect(await screen.findByText('acme-corp')).toBeInTheDocument();
+  });
+
+  it('renders theme toggle button', () => {
+    renderWithRouter(<Header />);
+    const themeButton = screen.getByRole('button', { name: /switch to light mode/i });
+    expect(themeButton).toBeInTheDocument();
+  });
+
+  it('calls toggleTheme when theme button is clicked', () => {
+    const toggleThemeMock = vi.fn();
+    (useUIStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockUIStore,
+      toggleTheme: toggleThemeMock,
+    });
+
+    renderWithRouter(<Header />);
+
+    const themeButton = screen.getByRole('button', { name: /switch to light mode/i });
+    fireEvent.click(themeButton);
+
+    expect(toggleThemeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows sun icon when in dark mode', () => {
+    (useUIStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockUIStore,
+      theme: 'dark',
+    });
+
+    renderWithRouter(<Header />);
+    const themeButton = screen.getByRole('button', { name: /switch to light mode/i });
+    expect(themeButton).toBeInTheDocument();
+  });
+
+  it('shows moon icon when in light mode', () => {
+    (useUIStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockUIStore,
+      theme: 'light',
+    });
+
+    renderWithRouter(<Header />);
+    const themeButton = screen.getByRole('button', { name: /switch to dark mode/i });
+    expect(themeButton).toBeInTheDocument();
   });
 });

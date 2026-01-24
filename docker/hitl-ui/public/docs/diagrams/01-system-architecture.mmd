@@ -22,7 +22,7 @@ flowchart TB
         JiraMCP["Jira MCP\n(issues)"]
     end
 
-    subgraph Agents["Agent Containers (Ephemeral K8s Jobs)"]
+    subgraph AgentContainers["Agent Containers (Ephemeral K8s Jobs)"]
         subgraph PhaseAgents["Phase Agents"]
             Discovery["Discovery\nAgent"]
             Design["Design\nAgent"]
@@ -47,18 +47,18 @@ flowchart TB
     SPA <-->|REST/WebSocket| HITLGateway
 
     %% Orchestration flows
-    Coordinator -->|create_job()| Agents
-    Coordinator <-->|xread/xadd| Redis
-    HITLGateway <-->|pub/sub| Redis
+    Coordinator -->|"create_job()"| Discovery
+    Coordinator <-->|"xread/xadd"| Redis
+    HITLGateway <-->|"pub/sub"| Redis
     GitGateway <-->|store| Git
 
     %% Agent flows
-    Agents -->|xadd progress| Redis
-    Agents <-->|stdio| MCPServers
+    Development -->|"xadd progress"| Redis
+    Test <-->|stdio| MCPServers
 
     %% MCP to external
-    RLM -->|Extended Thinking| Anthropic
-    RAG -->|Prompt Caching| Anthropic
+    RLM -->|"Extended Thinking"| Anthropic
+    RAG -->|"Prompt Caching"| Anthropic
     RAG <-->|embeddings| ChromaDB
 
     %% Styling

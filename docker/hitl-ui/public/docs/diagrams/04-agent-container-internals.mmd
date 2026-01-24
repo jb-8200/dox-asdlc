@@ -51,8 +51,8 @@ flowchart TB
     %% External connections
     PublishMsg -->|xadd| Redis
     HandleComplete -->|xadd| Redis
-    RLMServer -->|Extended Thinking| Anthropic
-    RAGServer -->|Prompt Caching| Anthropic
+    RLMServer -->|"Extended Thinking"| Anthropic
+    RAGServer -->|"Prompt Caching"| Anthropic
     RAGServer <-->|embeddings| ChromaDB
 
     %% Styling

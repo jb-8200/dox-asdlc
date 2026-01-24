@@ -28,7 +28,7 @@ flowchart TD
 
     %% Main flow
     Agent --> Complete
-    Complete -->|xadd PhaseCompleted| Receive
+    Complete -->|"xadd PhaseCompleted"| Receive
     Receive --> CheckWF
 
     CheckWF -->|AUTO| SpawnNext
