@@ -41,7 +41,8 @@ class TokenCounter:
             return 0
 
         # Create cache key from content hash
-        cache_key = hashlib.md5(text.encode()).hexdigest()
+        # SECURITY: Using SHA256 instead of MD5 for cache key generation
+        cache_key = hashlib.sha256(text.encode()).hexdigest()
 
         # Check cache
         if cache_key in self._cache:
