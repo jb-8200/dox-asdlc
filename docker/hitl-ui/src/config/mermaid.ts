@@ -30,7 +30,8 @@ export function getMermaidConfig(theme: 'light' | 'dark' = 'dark'): MermaidConfi
   return {
     startOnLoad: false,
     theme: 'base',
-    securityLevel: 'strict',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: false },
     fontFamily: 'Inter, system-ui, sans-serif',
     logLevel: 3, // Error level only
     themeVariables: isDark ? {

@@ -15,7 +15,7 @@ import DiagramGallery from '../components/docs/DiagramGallery';
 import DocBrowser from '../components/docs/DocBrowser';
 import DocViewer from '../components/docs/DocViewer';
 import DocSearch, { SearchResult } from '../components/docs/DocSearch';
-import { useDocuments, useDiagrams, useDocument } from '../api/docs';
+import { useDocuments, useDiagrams, useDocument, useDiagramContents } from '../api/docs';
 
 // Tab types
 type TabId = 'overview' | 'diagrams' | 'reference' | 'glossary';
@@ -224,6 +224,10 @@ export default function DocsPage() {
   const { data: diagrams = [], isLoading: diagramsLoading } = useDiagrams();
   const { data: selectedDocument } = useDocument(selectedDocId);
 
+  // Fetch diagram contents for thumbnails
+  const diagramIds = useMemo(() => diagrams.map((d) => d.id), [diagrams]);
+  const { data: diagramContents } = useDiagramContents(diagramIds);
+
   // Handle tab change
   const handleTabChange = useCallback(
     (tabId: TabId) => {
@@ -287,7 +291,11 @@ export default function DocsPage() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-blue" />
         </div>
       ) : (
-        <DiagramGallery diagrams={diagrams} onSelect={handleDiagramSelect} />
+        <DiagramGallery
+          diagrams={diagrams}
+          onSelect={handleDiagramSelect}
+          diagramContents={diagramContents instanceof Map ? diagramContents : new Map()}
+        />
       )}
     </div>
   );

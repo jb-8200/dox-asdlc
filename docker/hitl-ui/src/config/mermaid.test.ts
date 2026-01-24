@@ -25,7 +25,7 @@ describe('mermaid configuration', () => {
     expect(mermaid.default.initialize).toHaveBeenCalledWith(
       expect.objectContaining({
         startOnLoad: false,
-        securityLevel: 'strict',
+        securityLevel: 'loose',
       })
     );
   });
@@ -36,7 +36,7 @@ describe('mermaid configuration', () => {
 
     expect(config).toHaveProperty('startOnLoad', false);
     expect(config).toHaveProperty('theme');
-    expect(config).toHaveProperty('securityLevel', 'strict');
+    expect(config).toHaveProperty('securityLevel', 'loose');
     expect(config).toHaveProperty('fontFamily');
   });
 

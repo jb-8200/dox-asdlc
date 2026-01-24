@@ -7,6 +7,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DocsPage from './DocsPage';
+// Mock IntersectionObserver for DiagramThumbnail
+const mockIntersectionObserver = vi.fn();
+mockIntersectionObserver.mockReturnValue({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+});
+window.IntersectionObserver = mockIntersectionObserver;
+
+
 
 // Mock the docs API hooks
 vi.mock('../api/docs', () => ({
@@ -54,6 +64,11 @@ vi.mock('../api/docs', () => ({
       },
       content: '# System Design\n\nContent here',
     },
+    isLoading: false,
+    error: null,
+  })),
+  useDiagramContents: vi.fn(() => ({
+    data: new Map([['01-system-architecture', 'graph TD\n  A-->B']]),
     isLoading: false,
     error: null,
   })),

@@ -144,7 +144,7 @@ function MermaidDiagram({
           role="img"
           aria-label={ariaLabel}
           className="overflow-auto"
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true } }) }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true }, ADD_TAGS: ['foreignObject'] }) }}
         />
       )}
     </div>
