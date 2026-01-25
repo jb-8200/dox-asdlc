@@ -26,7 +26,7 @@ export default function Dashboard() {
   }
 
   const pendingGates = gatesData?.total ?? 0;
-  const activeSessions = sessionsData?.sessions.filter((s) => s.status === 'active').length ?? 0;
+  const activeSessions = (sessionsData?.sessions ?? []).filter((s) => s.status === 'active').length;
   const workerUtilization = workersData
     ? `${workersData.active}/${workersData.total}`
     : '0/0';
