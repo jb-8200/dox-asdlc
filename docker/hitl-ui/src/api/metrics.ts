@@ -2,7 +2,7 @@
  * Metrics API client functions for Metrics Dashboard (P05-F10)
  *
  * Handles VictoriaMetrics queries via backend proxy.
- * Uses mock data when VITE_USE_MOCKS=true.
+ * Supports runtime backend switching via mode parameter.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -23,29 +23,35 @@ import type {
   ActiveTasksMetrics,
   ServiceInfo,
   ServicesResponse,
+  MetricsHealthResponse,
 } from './types/metrics';
+import type { MetricsBackendMode } from '../stores/metricsStore';
 
 // ============================================================================
-// Check if mocks are enabled
+// Types
 // ============================================================================
 
-const isMocksEnabled = () => import.meta.env.VITE_USE_MOCKS === 'true';
+export interface MetricsQueryOptions {
+  /** Backend mode - 'mock' uses local data, 'victoriametrics' uses real API */
+  mode?: MetricsBackendMode;
+}
 
 // ============================================================================
 // Query Keys
 // ============================================================================
 
 export const metricsQueryKeys = {
-  services: () => ['metrics', 'services'] as const,
-  cpuUsage: (service: string | null, range: TimeRange) =>
-    ['metrics', 'cpu', service, range] as const,
-  memoryUsage: (service: string | null, range: TimeRange) =>
-    ['metrics', 'memory', service, range] as const,
-  requestRate: (service: string | null, range: TimeRange) =>
-    ['metrics', 'requests', service, range] as const,
-  latency: (service: string | null, range: TimeRange) =>
-    ['metrics', 'latency', service, range] as const,
-  activeTasks: () => ['metrics', 'tasks'] as const,
+  services: (mode?: MetricsBackendMode) => ['metrics', 'services', mode] as const,
+  health: (mode?: MetricsBackendMode) => ['metrics', 'health', mode] as const,
+  cpuUsage: (service: string | null, range: TimeRange, mode?: MetricsBackendMode) =>
+    ['metrics', 'cpu', service, range, mode] as const,
+  memoryUsage: (service: string | null, range: TimeRange, mode?: MetricsBackendMode) =>
+    ['metrics', 'memory', service, range, mode] as const,
+  requestRate: (service: string | null, range: TimeRange, mode?: MetricsBackendMode) =>
+    ['metrics', 'requests', service, range, mode] as const,
+  latency: (service: string | null, range: TimeRange, mode?: MetricsBackendMode) =>
+    ['metrics', 'latency', service, range, mode] as const,
+  activeTasks: (mode?: MetricsBackendMode) => ['metrics', 'tasks', mode] as const,
 };
 
 // ============================================================================
@@ -53,10 +59,26 @@ export const metricsQueryKeys = {
 // ============================================================================
 
 /**
+ * Check VictoriaMetrics health
+ */
+export async function getMetricsHealth(options?: MetricsQueryOptions): Promise<MetricsHealthResponse> {
+  if (options?.mode === 'mock') {
+    await simulateDelay(20, 50);
+    return { status: 'healthy' };
+  }
+  try {
+    const response = await apiClient.get<MetricsHealthResponse>('/metrics/health');
+    return response.data;
+  } catch {
+    return { status: 'unhealthy' };
+  }
+}
+
+/**
  * Get list of available services with health status
  */
-export async function getServices(): Promise<ServiceInfo[]> {
-  if (isMocksEnabled()) {
+export async function getServices(options?: MetricsQueryOptions): Promise<ServiceInfo[]> {
+  if (options?.mode === 'mock') {
     await simulateDelay(50, 150);
     return getMockServices();
   }
@@ -69,9 +91,10 @@ export async function getServices(): Promise<ServiceInfo[]> {
  */
 export async function getCPUMetrics(
   service: string | null,
-  range: TimeRange
+  range: TimeRange,
+  options?: MetricsQueryOptions
 ): Promise<VMMetricsTimeSeries> {
-  if (isMocksEnabled()) {
+  if (options?.mode === 'mock') {
     await simulateDelay(100, 250);
     return getMockCPUMetrics(service, range);
   }
@@ -86,9 +109,10 @@ export async function getCPUMetrics(
  */
 export async function getMemoryMetrics(
   service: string | null,
-  range: TimeRange
+  range: TimeRange,
+  options?: MetricsQueryOptions
 ): Promise<VMMetricsTimeSeries> {
-  if (isMocksEnabled()) {
+  if (options?.mode === 'mock') {
     await simulateDelay(100, 250);
     return getMockMemoryMetrics(service, range);
   }
@@ -103,9 +127,10 @@ export async function getMemoryMetrics(
  */
 export async function getRequestRateMetrics(
   service: string | null,
-  range: TimeRange
+  range: TimeRange,
+  options?: MetricsQueryOptions
 ): Promise<VMMetricsTimeSeries> {
-  if (isMocksEnabled()) {
+  if (options?.mode === 'mock') {
     await simulateDelay(100, 250);
     return getMockRequestRateMetrics(service, range);
   }
@@ -120,9 +145,10 @@ export async function getRequestRateMetrics(
  */
 export async function getLatencyMetrics(
   service: string | null,
-  range: TimeRange
+  range: TimeRange,
+  options?: MetricsQueryOptions
 ): Promise<LatencyMetrics> {
-  if (isMocksEnabled()) {
+  if (options?.mode === 'mock') {
     await simulateDelay(100, 300);
     return getMockLatencyMetrics(service, range);
   }
@@ -135,8 +161,8 @@ export async function getLatencyMetrics(
 /**
  * Get current active tasks and workers count
  */
-export async function getActiveTasks(): Promise<ActiveTasksMetrics> {
-  if (isMocksEnabled()) {
+export async function getActiveTasks(options?: MetricsQueryOptions): Promise<ActiveTasksMetrics> {
+  if (options?.mode === 'mock') {
     await simulateDelay(50, 150);
     return getMockActiveTasks();
   }
@@ -149,13 +175,25 @@ export async function getActiveTasks(): Promise<ActiveTasksMetrics> {
 // ============================================================================
 
 /**
+ * Hook to check VictoriaMetrics health
+ */
+export function useMetricsHealth(options?: MetricsQueryOptions) {
+  return useQuery({
+    queryKey: metricsQueryKeys.health(options?.mode),
+    queryFn: () => getMetricsHealth(options),
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+}
+
+/**
  * Hook to fetch available services
  */
-export function useServices() {
+export function useServices(options?: MetricsQueryOptions) {
   return useQuery({
-    queryKey: metricsQueryKeys.services(),
-    queryFn: getServices,
-    staleTime: 60000, // Services change infrequently
+    queryKey: metricsQueryKeys.services(options?.mode),
+    queryFn: () => getServices(options),
+    staleTime: 60000,
   });
 }
 
@@ -165,11 +203,12 @@ export function useServices() {
 export function useCPUMetrics(
   service: string | null,
   range: TimeRange,
-  refetchInterval?: number
+  refetchInterval?: number,
+  options?: MetricsQueryOptions
 ) {
   return useQuery({
-    queryKey: metricsQueryKeys.cpuUsage(service, range),
-    queryFn: () => getCPUMetrics(service, range),
+    queryKey: metricsQueryKeys.cpuUsage(service, range, options?.mode),
+    queryFn: () => getCPUMetrics(service, range, options),
     refetchInterval,
     staleTime: 15000,
   });
@@ -181,11 +220,12 @@ export function useCPUMetrics(
 export function useMemoryMetrics(
   service: string | null,
   range: TimeRange,
-  refetchInterval?: number
+  refetchInterval?: number,
+  options?: MetricsQueryOptions
 ) {
   return useQuery({
-    queryKey: metricsQueryKeys.memoryUsage(service, range),
-    queryFn: () => getMemoryMetrics(service, range),
+    queryKey: metricsQueryKeys.memoryUsage(service, range, options?.mode),
+    queryFn: () => getMemoryMetrics(service, range, options),
     refetchInterval,
     staleTime: 15000,
   });
@@ -197,11 +237,12 @@ export function useMemoryMetrics(
 export function useRequestRateMetrics(
   service: string | null,
   range: TimeRange,
-  refetchInterval?: number
+  refetchInterval?: number,
+  options?: MetricsQueryOptions
 ) {
   return useQuery({
-    queryKey: metricsQueryKeys.requestRate(service, range),
-    queryFn: () => getRequestRateMetrics(service, range),
+    queryKey: metricsQueryKeys.requestRate(service, range, options?.mode),
+    queryFn: () => getRequestRateMetrics(service, range, options),
     refetchInterval,
     staleTime: 15000,
   });
@@ -213,11 +254,12 @@ export function useRequestRateMetrics(
 export function useLatencyMetrics(
   service: string | null,
   range: TimeRange,
-  refetchInterval?: number
+  refetchInterval?: number,
+  options?: MetricsQueryOptions
 ) {
   return useQuery({
-    queryKey: metricsQueryKeys.latency(service, range),
-    queryFn: () => getLatencyMetrics(service, range),
+    queryKey: metricsQueryKeys.latency(service, range, options?.mode),
+    queryFn: () => getLatencyMetrics(service, range, options),
     refetchInterval,
     staleTime: 15000,
   });
@@ -226,10 +268,10 @@ export function useLatencyMetrics(
 /**
  * Hook to fetch active tasks metrics with optional auto-refresh
  */
-export function useActiveTasks(refetchInterval?: number) {
+export function useActiveTasks(refetchInterval?: number, options?: MetricsQueryOptions) {
   return useQuery({
-    queryKey: metricsQueryKeys.activeTasks(),
-    queryFn: getActiveTasks,
+    queryKey: metricsQueryKeys.activeTasks(options?.mode),
+    queryFn: () => getActiveTasks(options),
     refetchInterval,
     staleTime: 10000,
   });

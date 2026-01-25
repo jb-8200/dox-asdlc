@@ -6,24 +6,26 @@
  *
  * Features:
  * - Service and time range filtering
+ * - Backend selector (Mock/VictoriaMetrics)
  * - Auto-refresh toggle with manual refresh button
  * - Resource metrics (CPU, Memory)
  * - Request metrics (Rate, Latency percentiles)
  * - Active tasks gauge
  */
 
-import { useCallback } from 'react';
-import { ArrowPathIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import clsx from 'clsx';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback } from "react";
+import { ArrowPathIcon, ChartBarIcon } from "@heroicons/react/24/outline";
+import clsx from "clsx";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useCPUMetrics,
   useMemoryMetrics,
   useRequestRateMetrics,
   useLatencyMetrics,
   useActiveTasks,
-} from '../api/metrics';
-import { useMetricsStore } from '../stores/metricsStore';
+  useMetricsHealth,
+} from "../api/metrics";
+import { useMetricsStore } from "../stores/metricsStore";
 import {
   ServiceSelector,
   TimeRangeSelector,
@@ -32,7 +34,8 @@ import {
   RequestRateChart,
   LatencyChart,
   ActiveTasksGauge,
-} from '../components/metrics';
+  MetricsBackendSelector,
+} from "../components/metrics";
 
 export interface MetricsPageProps {
   /** Custom class name */
@@ -43,47 +46,60 @@ export default function MetricsPage({ className }: MetricsPageProps) {
   const queryClient = useQueryClient();
 
   // Store state
-  const { selectedService, timeRange, autoRefresh, refreshInterval, toggleAutoRefresh } =
-    useMetricsStore();
+  const {
+    selectedService,
+    timeRange,
+    autoRefresh,
+    refreshInterval,
+    selectedBackend,
+    setBackend,
+    toggleAutoRefresh,
+  } = useMetricsStore();
 
   // Calculate effective refresh interval
   const effectiveRefreshInterval = autoRefresh ? refreshInterval : undefined;
+
+  // Backend mode for API calls
+  const backendOptions = { mode: selectedBackend };
+
+  // Health check for selected backend
+  const { data: healthData } = useMetricsHealth(backendOptions);
 
   // Data fetching
   const {
     data: cpuData,
     isLoading: cpuLoading,
     error: cpuError,
-  } = useCPUMetrics(selectedService, timeRange, effectiveRefreshInterval);
+  } = useCPUMetrics(selectedService, timeRange, effectiveRefreshInterval, backendOptions);
 
   const {
     data: memoryData,
     isLoading: memoryLoading,
     error: memoryError,
-  } = useMemoryMetrics(selectedService, timeRange, effectiveRefreshInterval);
+  } = useMemoryMetrics(selectedService, timeRange, effectiveRefreshInterval, backendOptions);
 
   const {
     data: requestRateData,
     isLoading: requestRateLoading,
     error: requestRateError,
-  } = useRequestRateMetrics(selectedService, timeRange, effectiveRefreshInterval);
+  } = useRequestRateMetrics(selectedService, timeRange, effectiveRefreshInterval, backendOptions);
 
   const {
     data: latencyData,
     isLoading: latencyLoading,
     error: latencyError,
-  } = useLatencyMetrics(selectedService, timeRange, effectiveRefreshInterval);
+  } = useLatencyMetrics(selectedService, timeRange, effectiveRefreshInterval, backendOptions);
 
   const {
     data: activeTasksData,
     isLoading: activeTasksLoading,
     error: activeTasksError,
-  } = useActiveTasks(effectiveRefreshInterval);
+  } = useActiveTasks(effectiveRefreshInterval, backendOptions);
 
   // Manual refresh handler
   const handleRefresh = useCallback(() => {
     // Invalidate all metrics queries to trigger refetch
-    queryClient.invalidateQueries({ queryKey: ['metrics'] });
+    queryClient.invalidateQueries({ queryKey: ["metrics"] });
   }, [queryClient]);
 
   // Aggregate loading and error states
@@ -95,7 +111,7 @@ export default function MetricsPage({ className }: MetricsPageProps) {
   // Initial loading state (no data yet)
   if (isInitialLoading && !cpuData && !memoryData && !requestRateData && !latencyData) {
     return (
-      <div className={clsx('h-full flex flex-col bg-bg-primary', className)} data-testid="metrics-page">
+      <div className={clsx("h-full flex flex-col bg-bg-primary", className)} data-testid="metrics-page">
         <div className="flex-1 flex items-center justify-center" data-testid="metrics-loading">
           <div className="space-y-4 w-full max-w-6xl px-6">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -116,9 +132,9 @@ export default function MetricsPage({ className }: MetricsPageProps) {
     const errorMessage =
       (cpuError as Error)?.message ||
       (memoryError as Error)?.message ||
-      'Failed to load metrics data';
+      "Failed to load metrics data";
     return (
-      <div className={clsx('h-full flex flex-col bg-bg-primary', className)} data-testid="metrics-page">
+      <div className={clsx("h-full flex flex-col bg-bg-primary", className)} data-testid="metrics-page">
         <div className="flex-1 flex items-center justify-center" data-testid="metrics-error">
           <div className="text-center">
             <p className="text-status-error mb-4">{errorMessage}</p>
@@ -137,7 +153,7 @@ export default function MetricsPage({ className }: MetricsPageProps) {
 
   return (
     <div
-      className={clsx('h-full flex flex-col bg-bg-primary', className)}
+      className={clsx("h-full flex flex-col bg-bg-primary", className)}
       data-testid="metrics-page"
       role="main"
     >
@@ -160,14 +176,20 @@ export default function MetricsPage({ className }: MetricsPageProps) {
           <div className="flex items-center gap-3">
             <ServiceSelector />
             <TimeRangeSelector />
+            <MetricsBackendSelector
+              mode={selectedBackend}
+              onChange={setBackend}
+              showHealth
+              healthStatus={healthData?.status}
+            />
 
             <button
               onClick={toggleAutoRefresh}
               className={clsx(
-                'px-3 py-1.5 rounded text-xs font-medium transition-colors',
+                "px-3 py-1.5 rounded text-xs font-medium transition-colors",
                 autoRefresh
-                  ? 'bg-accent-blue text-white'
-                  : 'bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary/80'
+                  ? "bg-accent-blue text-white"
+                  : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary/80"
               )}
               aria-pressed={autoRefresh}
               data-testid="auto-refresh-toggle"

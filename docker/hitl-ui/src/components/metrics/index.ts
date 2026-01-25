@@ -9,3 +9,4 @@ export { default as MemoryChart } from './MemoryChart';
 export { default as RequestRateChart } from './RequestRateChart';
 export { default as LatencyChart } from './LatencyChart';
 export { default as ActiveTasksGauge } from './ActiveTasksGauge';
+export { default as MetricsBackendSelector } from './MetricsBackendSelector';

@@ -2,15 +2,20 @@
  * Metrics Dashboard Zustand Store (P05-F10)
  *
  * Manages UI state for the metrics dashboard including
- * service selection, time range, and auto-refresh settings.
+ * service selection, time range, auto-refresh settings,
+ * and backend mode selection.
  */
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TimeRange } from '../api/types/metrics';
 
 // ============================================================================
 // Types
 // ============================================================================
+
+/** Backend mode for metrics data source */
+export type MetricsBackendMode = 'mock' | 'victoriametrics';
 
 export interface MetricsState {
   // Filter state
@@ -18,6 +23,10 @@ export interface MetricsState {
   selectedService: string | null;
   /** Current time range for queries */
   timeRange: TimeRange;
+
+  // Backend state
+  /** Selected backend mode (persisted) */
+  selectedBackend: MetricsBackendMode;
 
   // UI state
   /** Whether auto-refresh is enabled */
@@ -28,6 +37,7 @@ export interface MetricsState {
   // Actions
   setSelectedService: (service: string | null) => void;
   setTimeRange: (range: TimeRange) => void;
+  setBackend: (mode: MetricsBackendMode) => void;
   toggleAutoRefresh: () => void;
   setAutoRefresh: (enabled: boolean) => void;
   reset: () => void;
@@ -43,6 +53,12 @@ export const DEFAULT_REFRESH_INTERVAL = 30000;
 /** Default time range */
 export const DEFAULT_TIME_RANGE: TimeRange = '1h';
 
+/** Default backend mode */
+export const DEFAULT_BACKEND: MetricsBackendMode = 'mock';
+
+/** Storage key for persistence */
+const STORAGE_KEY = 'metrics-dashboard-store';
+
 // ============================================================================
 // Initial State
 // ============================================================================
@@ -50,6 +66,7 @@ export const DEFAULT_TIME_RANGE: TimeRange = '1h';
 const initialState = {
   selectedService: null as string | null,
   timeRange: DEFAULT_TIME_RANGE,
+  selectedBackend: DEFAULT_BACKEND,
   autoRefresh: true,
   refreshInterval: DEFAULT_REFRESH_INTERVAL,
 };
@@ -58,20 +75,34 @@ const initialState = {
 // Store
 // ============================================================================
 
-export const useMetricsStore = create<MetricsState>((set) => ({
-  ...initialState,
+export const useMetricsStore = create<MetricsState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  setSelectedService: (service) => set({ selectedService: service }),
+      setSelectedService: (service) => set({ selectedService: service }),
 
-  setTimeRange: (range) => set({ timeRange: range }),
+      setTimeRange: (range) => set({ timeRange: range }),
 
-  toggleAutoRefresh: () =>
-    set((state) => ({ autoRefresh: !state.autoRefresh })),
+      setBackend: (mode) => set({ selectedBackend: mode }),
 
-  setAutoRefresh: (enabled) => set({ autoRefresh: enabled }),
+      toggleAutoRefresh: () =>
+        set((state) => ({ autoRefresh: !state.autoRefresh })),
 
-  reset: () => set(initialState),
-}));
+      setAutoRefresh: (enabled) => set({ autoRefresh: enabled }),
+
+      reset: () => set(initialState),
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => localStorage),
+      // Only persist backend preference
+      partialize: (state) => ({
+        selectedBackend: state.selectedBackend,
+      }),
+    }
+  )
+);
 
 // ============================================================================
 // Selectors (for optimized component subscriptions)
@@ -80,6 +111,7 @@ export const useMetricsStore = create<MetricsState>((set) => ({
 export const selectSelectedService = (state: MetricsState) =>
   state.selectedService;
 export const selectTimeRange = (state: MetricsState) => state.timeRange;
+export const selectBackend = (state: MetricsState) => state.selectedBackend;
 export const selectAutoRefresh = (state: MetricsState) => state.autoRefresh;
 export const selectRefreshInterval = (state: MetricsState) =>
   state.refreshInterval;
@@ -89,3 +121,9 @@ export const selectRefreshInterval = (state: MetricsState) =>
  */
 export const selectEffectiveRefreshInterval = (state: MetricsState) =>
   state.autoRefresh ? state.refreshInterval : undefined;
+
+/**
+ * Check if using real backend (not mock)
+ */
+export const selectIsRealBackend = (state: MetricsState) =>
+  state.selectedBackend !== 'mock';

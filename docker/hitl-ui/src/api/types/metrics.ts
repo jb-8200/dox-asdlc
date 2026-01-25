@@ -231,3 +231,17 @@ export interface ChartAxisConfig {
   /** Y-axis label */
   label?: string;
 }
+
+// ============================================================================
+// Health Check Types
+// ============================================================================
+
+/**
+ * Response from metrics health endpoint
+ */
+export interface MetricsHealthResponse {
+  /** Health status */
+  status: 'healthy' | 'unhealthy' | 'unknown';
+  /** Optional error message */
+  error?: string;
+}

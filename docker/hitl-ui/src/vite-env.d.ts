@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_ALLOWED_TENANTS: string;
   readonly VITE_POLLING_INTERVAL: string;
   readonly VITE_USE_MOCKS: string;
+  readonly VITE_USE_REAL_METRICS: string;
 }
 
 interface ImportMeta {
