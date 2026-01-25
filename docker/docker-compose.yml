@@ -135,8 +135,13 @@ services:
     command:
       - -storageDataPath=/victoria-metrics-data
       - -retentionPeriod=30d
+      - -promscrape.config=/scrape.yml
     volumes:
       - victoriametrics-data:/victoria-metrics-data
+      - ./victoriametrics/scrape.yml:/scrape.yml:ro
+    depends_on:
+      - orchestrator
+      - workers
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8428/health"]
       interval: 10s
