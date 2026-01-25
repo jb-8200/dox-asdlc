@@ -98,6 +98,40 @@ gh issue close <num>             # Close resolved issue
 | contract-update | API contract changes |
 | diagram-builder | Mermaid diagrams |
 
+## KnowledgeStore MCP
+
+The project includes a semantic search MCP for exploring the indexed codebase.
+
+### Tools Available
+
+| Tool | Purpose |
+|------|---------|
+| `ks_search` | Semantic search across indexed code and docs |
+| `ks_get` | Retrieve specific document by ID |
+| `ks_index` | Add new documents to the index |
+| `ks_health` | Check Elasticsearch status |
+
+### Usage Examples
+
+```bash
+# Search for implementation patterns
+ks_search query="HITL gate implementation" top_k=5
+
+# Get specific file content
+ks_get doc_id="src/core/interfaces.py:0"
+```
+
+### When to Use
+
+- Exploring unfamiliar parts of the codebase
+- Finding implementation patterns
+- Locating related code during reviews
+- Understanding how features are connected
+
+### Configuration
+
+The MCP is configured in `.mcp.json` (user-specific, not committed). Requires Elasticsearch running at localhost:9200.
+
 ## Related Docs
 
 - @docs/System_Design.md - Architecture

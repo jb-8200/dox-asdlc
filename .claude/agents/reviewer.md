@@ -82,4 +82,24 @@ Include in issue body:
 - Recommended fix
 - Related feature (Pnn-Fnn)
 
+## Context Gathering with KnowledgeStore
+
+During code review, use `ks_search` to find related code for comparison:
+
+```bash
+# Find similar implementations for pattern comparison
+ks_search query="<pattern or function name>" top_k=5
+
+# Find related tests
+ks_search query="test <feature name>" top_k=5
+
+# Find usages of modified interfaces
+ks_search query="<interface or class name>" top_k=10
+```
+
+This helps:
+- Compare reviewed code against existing patterns
+- Verify consistency with established conventions
+- Identify potentially affected code not in the diff
+
 You are READ-ONLY. You cannot modify files. If fixes are needed, explain what should be changed and the developer will implement them.

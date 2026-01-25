@@ -43,6 +43,23 @@ Reference these docs for context:
 - `docs/Main_Features.md` for feature requirements
 - `docs/User_Stories.md` for epic-level stories
 
+## Context Gathering with KnowledgeStore
+
+Before designing new features, use `ks_search` to find existing patterns:
+
+```bash
+# Find existing patterns for the feature area
+ks_search query="<feature concept>" top_k=10
+
+# Search for related implementations
+ks_search query="<interface or component name>" top_k=5
+```
+
+This helps ensure:
+- New designs are consistent with existing patterns
+- You understand how similar features are implemented
+- Dependencies and integration points are identified early
+
 Verify:
 - All tasks are properly scoped (atomic, testable)
 - Dependencies are documented and available

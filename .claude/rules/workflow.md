@@ -69,6 +69,8 @@ The planner creates:
 - `user_stories.md` - User-facing requirements with acceptance criteria
 - `tasks.md` - Atomic tasks scoped to less than 2 hours each
 
+**Context gathering:** Use `ks_search` to find existing patterns before designing. This ensures consistency with the codebase.
+
 **Auto-trigger:** diagram-builder skill is invoked automatically to create architecture diagrams when design.md is created.
 
 ### Step 3: Diagrams
@@ -201,6 +203,8 @@ Reviewer inspects:
 - Test coverage
 - Security concerns
 - Performance implications
+
+**Context gathering:** Use `ks_search` to find similar code patterns for comparison and verify consistency with established conventions.
 
 All findings become GitHub issues with appropriate labels:
 - `security` - Security vulnerabilities
