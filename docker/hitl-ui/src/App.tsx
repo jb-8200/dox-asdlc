@@ -1,34 +1,39 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/layout/Layout';
-import Dashboard from './pages/Dashboard';
-import GatesPage from './pages/GatesPage';
-import GateDetailPage from './pages/GateDetailPage';
-import WorkersPage from './pages/WorkersPage';
-import SessionsPage from './pages/SessionsPage';
-import CockpitPage from './pages/CockpitPage';
-import RunDetailPage from './pages/RunDetailPage';
-import ArtifactsPage from './pages/ArtifactsPage';
-import ArtifactDetailPage from './pages/ArtifactDetailPage';
-import DocsPage from './pages/DocsPage';
-import DiagramDetailPage from './pages/DiagramDetailPage';
-import DocDetailPage from './pages/DocDetailPage';
-import StudioDiscoveryPage from './pages/StudioDiscoveryPage';
-import RuleProposalsPage from './pages/RuleProposalsPage';
-import K8sPage from './pages/K8sPage';
-import MetricsPage from './pages/MetricsPage';
-import SearchPage from './pages/SearchPage';
-import { initMermaid } from './config/mermaid';
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Layout from "./components/layout/Layout";
+import Dashboard from "./pages/Dashboard";
+import GatesPage from "./pages/GatesPage";
+import GateDetailPage from "./pages/GateDetailPage";
+import WorkersPage from "./pages/WorkersPage";
+import SessionsPage from "./pages/SessionsPage";
+import CockpitPage from "./pages/CockpitPage";
+import RunDetailPage from "./pages/RunDetailPage";
+import ArtifactsPage from "./pages/ArtifactsPage";
+import ArtifactDetailPage from "./pages/ArtifactDetailPage";
+import DocsPage from "./pages/DocsPage";
+import DiagramDetailPage from "./pages/DiagramDetailPage";
+import DocDetailPage from "./pages/DocDetailPage";
+import StudioDiscoveryPage from "./pages/StudioDiscoveryPage";
+import RuleProposalsPage from "./pages/RuleProposalsPage";
+import K8sPage from "./pages/K8sPage";
+import MetricsPage from "./pages/MetricsPage";
+import SearchPage from "./pages/SearchPage";
+import { initMermaid } from "./config/mermaid";
 
 function App() {
   // Initialize theme on app load
   useEffect(() => {
-    const theme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    initMermaid(theme as 'light' | 'dark');
+    const theme = localStorage.getItem("theme") || "dark";
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    initMermaid(theme as "light" | "dark");
   }, []);
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
