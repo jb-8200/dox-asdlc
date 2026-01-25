@@ -141,7 +141,7 @@ export default function MethodologyStepper({
                     'relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold transition-colors',
                     isCurrent && 'bg-accent-teal border-accent-teal text-white',
                     isCompleted && 'bg-accent-teal border-accent-teal text-white',
-                    isFuture && 'bg-bg-secondary border-border-primary text-text-muted hover:border-accent-teal/50'
+                    isFuture && 'bg-bg-secondary border-bg-tertiary text-text-muted hover:border-accent-teal'
                   )}
                   onClick={() => goToStage(index)}
                   onKeyDown={(e) => handleStageKeyDown(e, index)}
@@ -163,7 +163,7 @@ export default function MethodologyStepper({
                   <div
                     className={clsx(
                       'flex-1 h-1 mx-2',
-                      index < currentIndex ? 'bg-accent-teal' : 'bg-border-primary'
+                      index < currentIndex ? 'bg-accent-teal' : 'bg-bg-tertiary'
                     )}
                     data-testid="stage-connector"
                   />
@@ -208,7 +208,7 @@ export default function MethodologyStepper({
 
       {/* Stage content */}
       <div
-        className="bg-bg-secondary border border-border-primary rounded-lg p-6"
+        className="bg-bg-secondary border border-bg-tertiary rounded-lg p-6"
         data-testid="stage-content"
       >
         {/* Header */}
@@ -310,8 +310,8 @@ export default function MethodologyStepper({
           className={clsx(
             'flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors',
             currentIndex === 0
-              ? 'border-border-primary text-text-muted cursor-not-allowed'
-              : 'border-border-primary text-text-secondary hover:bg-bg-tertiary'
+              ? 'border-bg-tertiary text-text-muted cursor-not-allowed'
+              : 'border-bg-tertiary text-text-secondary hover:bg-bg-tertiary'
           )}
           aria-label="Previous stage"
           data-testid="prev-button"

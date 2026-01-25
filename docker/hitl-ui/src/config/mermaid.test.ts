@@ -44,14 +44,14 @@ describe('mermaid configuration', () => {
     const { getMermaidConfig } = await import('./mermaid');
     const config = getMermaidConfig('dark');
 
-    expect(config.theme).toBe('base');
+    expect(config.theme).toBe('dark');
   });
 
   it('supports light theme configuration', async () => {
     const { getMermaidConfig } = await import('./mermaid');
     const config = getMermaidConfig('light');
 
-    expect(config.theme).toBe('base');
+    expect(config.theme).toBe('default');
   });
 
   it('includes themeVariables for dark theme', async () => {
@@ -69,9 +69,10 @@ describe('mermaid configuration', () => {
     expect(config.themeVariables?.primaryTextColor).toBe('#0F172A');
   });
 
-  it('uses base theme to allow custom themeVariables', async () => {
+  it('uses dark theme with custom themeVariables', async () => {
     const { getMermaidConfig } = await import('./mermaid');
     const config = getMermaidConfig('dark');
-    expect(config.theme).toBe('base');
+    expect(config.theme).toBe('dark');
+    expect(config.themeVariables).toBeDefined();
   });
 });

@@ -59,33 +59,34 @@ export interface BlueprintMapProps {
 }
 
 // Color mappings for cluster themes
+// Using bg-bg-secondary as base with colored borders for dark mode compatibility
 const colorClasses = {
   teal: {
     border: 'border-accent-teal',
-    bg: 'bg-accent-teal/10',
+    bg: 'bg-bg-secondary',
     text: 'text-accent-teal',
-    hoverBg: 'hover:bg-accent-teal/20',
+    hoverBg: 'hover:bg-bg-tertiary',
   },
   purple: {
-    border: 'border-accent-purple',
-    bg: 'bg-accent-purple/10',
-    text: 'text-accent-purple',
-    hoverBg: 'hover:bg-accent-purple/20',
+    border: 'border-purple-500 dark:border-purple-400',
+    bg: 'bg-bg-secondary',
+    text: 'text-purple-600 dark:text-purple-400',
+    hoverBg: 'hover:bg-bg-tertiary',
   },
   blue: {
-    border: 'border-accent-blue',
-    bg: 'bg-accent-blue/10',
-    text: 'text-accent-blue',
-    hoverBg: 'hover:bg-accent-blue/20',
+    border: 'border-blue-500 dark:border-blue-400',
+    bg: 'bg-bg-secondary',
+    text: 'text-blue-600 dark:text-blue-400',
+    hoverBg: 'hover:bg-bg-tertiary',
   },
   green: {
     border: 'border-status-success',
-    bg: 'bg-status-success/10',
+    bg: 'bg-bg-secondary',
     text: 'text-status-success',
-    hoverBg: 'hover:bg-status-success/20',
+    hoverBg: 'hover:bg-bg-tertiary',
   },
   gray: {
-    border: 'border-border-primary',
+    border: 'border-bg-tertiary',
     bg: 'bg-bg-secondary',
     text: 'text-text-secondary',
     hoverBg: 'hover:bg-bg-tertiary',
@@ -271,7 +272,7 @@ export default function BlueprintMap({
               {/* Expanded content */}
               {isExpanded && (
                 <div
-                  className="border-t border-border-primary px-4 py-3 bg-bg-primary/50"
+                  className="border-t border-bg-tertiary px-4 py-3 bg-bg-tertiary"
                   data-testid={`cluster-items-${cluster.id}`}
                   role="list"
                 >

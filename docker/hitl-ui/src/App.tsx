@@ -41,6 +41,7 @@ function App() {
           <Route path="docs/diagrams/:diagramId" element={<DiagramDetailPage />} />
           <Route path="docs/:docPath" element={<DocDetailPage />} />
           <Route path="studio" element={<StudioDiscoveryPage />} />
+          <Route path="studio/discovery" element={<Navigate to="/studio" replace />} />
           <Route path="rules" element={<RuleProposalsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

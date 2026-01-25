@@ -100,6 +100,49 @@ function DiagramThumbnail({
     renderDiagram();
   }, [renderDiagram]);
 
+  // Post-process SVG for dark mode - override light fills
+  useEffect(() => {
+    if (!svg || !containerRef.current || theme !== 'dark') return;
+
+    const svgElement = containerRef.current.querySelector('svg');
+    if (!svgElement) return;
+
+    // Helper to parse rgb(r, g, b) string
+    const parseRgb = (rgbStr: string): number[] | null => {
+      if (!rgbStr.startsWith('rgb(')) return null;
+      const values = rgbStr.slice(4, -1).split(', ').map(Number);
+      return values.length === 3 ? values : null;
+    };
+
+    // Find all rect elements with light fills and make them dark
+    const rects = svgElement.querySelectorAll('rect');
+    rects.forEach((rect) => {
+      const fill = getComputedStyle(rect).fill;
+      const rgb = parseRgb(fill);
+      if (rgb) {
+        const [r, g, b] = rgb;
+        if ((r + g + b) / 3 > 180) {
+          (rect as HTMLElement).style.setProperty('fill', '#1e1e1e', 'important');
+          (rect as HTMLElement).style.setProperty('stroke', '#444', 'important');
+        }
+      }
+    });
+
+    // Ensure SVG text is light colored
+    const texts = svgElement.querySelectorAll('text, tspan');
+    texts.forEach((text) => {
+      (text as HTMLElement).style.setProperty('fill', '#e0e0e0', 'important');
+    });
+
+    // Handle foreignObject elements
+    const foreignObjects = svgElement.querySelectorAll('foreignObject');
+    foreignObjects.forEach((fo) => {
+      (fo as HTMLElement).style.setProperty('color', '#e0e0e0', 'important');
+      const children = fo.querySelectorAll('div, span, p');
+      children.forEach((c) => (c as HTMLElement).style.setProperty('color', '#e0e0e0', 'important'));
+    });
+  }, [svg, theme]);
+
   return (
     <div
       ref={containerRef}

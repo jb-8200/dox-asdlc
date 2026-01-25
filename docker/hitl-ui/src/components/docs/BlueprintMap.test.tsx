@@ -222,13 +222,13 @@ describe('BlueprintMap', () => {
     it('applies purple color to design cluster', () => {
       render(<BlueprintMap clusters={defaultClusters} />);
       const cluster = screen.getByTestId('cluster-design');
-      expect(cluster).toHaveClass('border-accent-purple');
+      expect(cluster).toHaveClass('border-purple-500');
     });
 
     it('applies blue color to development cluster', () => {
       render(<BlueprintMap clusters={defaultClusters} />);
       const cluster = screen.getByTestId('cluster-development');
-      expect(cluster).toHaveClass('border-accent-blue');
+      expect(cluster).toHaveClass('border-blue-500');
     });
 
     it('applies green color to validation cluster', () => {

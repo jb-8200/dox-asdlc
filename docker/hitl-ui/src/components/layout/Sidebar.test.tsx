@@ -17,6 +17,7 @@ describe('Sidebar', () => {
 
   it('renders workflow navigation items', () => {
     renderWithRouter(<Sidebar />);
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Documentation')).toBeInTheDocument();
     expect(screen.getByText('Agent Cockpit')).toBeInTheDocument();
     expect(screen.getByText('Discovery Studio')).toBeInTheDocument();
@@ -24,17 +25,14 @@ describe('Sidebar', () => {
     expect(screen.getByText('Artifacts')).toBeInTheDocument();
   });
 
-  it('renders operations section with disabled items', () => {
+  it('renders administration section with disabled items', () => {
     renderWithRouter(<Sidebar />);
 
-    // Operations section should be collapsed by default
-    const operationsHeader = screen.getByText('Operations');
-    expect(operationsHeader).toBeInTheDocument();
+    // Administration section should be expanded by default
+    const adminHeader = screen.getByText('Administration');
+    expect(adminHeader).toBeInTheDocument();
 
-    // Click to expand
-    fireEvent.click(operationsHeader);
-
-    // Check for disabled items
+    // Check for disabled items (section is already expanded)
     expect(screen.getByText('Budget')).toBeInTheDocument();
     expect(screen.getByText('Admin')).toBeInTheDocument();
 
@@ -59,11 +57,17 @@ describe('Sidebar', () => {
   it('renders navigation links with correct hrefs', () => {
     renderWithRouter(<Sidebar />);
 
+    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    expect(dashboardLink).toHaveAttribute('href', '/');
+
     const docsLink = screen.getByRole('link', { name: /documentation/i });
     expect(docsLink).toHaveAttribute('href', '/docs');
 
     const cockpitLink = screen.getByRole('link', { name: /agent cockpit/i });
     expect(cockpitLink).toHaveAttribute('href', '/cockpit');
+
+    const studioLink = screen.getByRole('link', { name: /discovery studio/i });
+    expect(studioLink).toHaveAttribute('href', '/studio');
 
     const gatesLink = screen.getByRole('link', { name: /hitl gates/i });
     expect(gatesLink).toHaveAttribute('href', '/gates');
@@ -80,10 +84,7 @@ describe('Sidebar', () => {
   it('marks disabled items with cursor-not-allowed class', () => {
     renderWithRouter(<Sidebar />);
 
-    // Expand operations section
-    const operationsHeader = screen.getByText('Operations');
-    fireEvent.click(operationsHeader);
-
+    // Administration section is expanded by default
     // Find the Budget link
     const budgetLink = screen.getByRole('link', { name: /budget/i });
     expect(budgetLink).toHaveClass('cursor-not-allowed');

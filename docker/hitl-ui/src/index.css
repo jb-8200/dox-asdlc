@@ -154,15 +154,51 @@
   }
 }
 
-/* Mermaid diagram dark mode styles */
-.diagram-dark-mode svg {
-  /* Invert light backgrounds to dark while preserving hue */
-  filter: invert(0.85) hue-rotate(180deg);
+/* Mermaid diagram dark mode overrides */
+/* Override Mermaid's internal styles for dark mode - use high specificity */
+.dark .diagram-dark-mode svg rect.basic.label-container,
+.dark .diagram-dark-mode svg .node rect.basic,
+.dark .diagram-dark-mode svg .node rect,
+.dark .diagram-dark-mode svg .node polygon,
+.dark .diagram-dark-mode svg .cluster rect,
+.dark .diagram-dark-mode svg g.cluster rect {
+  fill: #1e1e1e !important;
+  stroke: #444 !important;
 }
 
-.diagram-dark-mode svg text {
-  /* Keep text readable after inversion */
-  filter: invert(1) hue-rotate(180deg);
+/* Target specific Mermaid classes that may have light fills */
+.dark .diagram-dark-mode svg .infra rect.basic,
+.dark .diagram-dark-mode svg .agent rect.basic,
+.dark .diagram-dark-mode svg .orchestration rect.basic,
+.dark .diagram-dark-mode svg .ui rect.basic,
+.dark .diagram-dark-mode svg .default rect.basic {
+  fill: #1e1e1e !important;
+}
+
+/* Text colors for dark mode */
+.dark .diagram-dark-mode svg text,
+.dark .diagram-dark-mode svg .nodeLabel,
+.dark .diagram-dark-mode svg .label,
+.dark .diagram-dark-mode svg tspan {
+  fill: #e0e0e0 !important;
+  color: #e0e0e0 !important;
+}
+
+/* Edge labels background */
+.dark .diagram-dark-mode svg .edgeLabel rect {
+  fill: #0a0a0a !important;
+}
+
+/* Lines and arrows */
+.dark .diagram-dark-mode svg .edgePath path,
+.dark .diagram-dark-mode svg .flowchart-link,
+.dark .diagram-dark-mode svg path.path {
+  stroke: #666 !important;
+}
+
+.dark .diagram-dark-mode svg marker path {
+  fill: #888 !important;
+  stroke: #888 !important;
 }
 
 /* Code/diff viewer styles */

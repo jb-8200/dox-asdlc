@@ -80,7 +80,8 @@ describe('Layout', () => {
 
   it('renders the header', () => {
     renderWithRouter();
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    // Use heading role to find the page title in the header (h2)
+    expect(screen.getByRole('heading', { name: 'Dashboard', level: 2 })).toBeInTheDocument();
   });
 
   it('renders the status bar', () => {

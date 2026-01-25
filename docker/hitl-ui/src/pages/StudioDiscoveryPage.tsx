@@ -157,20 +157,20 @@ export default function StudioDiscoveryPage({
 
   return (
     <div
-      className={clsx('h-full flex flex-col bg-gray-50', className)}
+      className={clsx('h-full flex flex-col bg-bg-primary', className)}
       data-testid="studio-discovery-page"
       role="main"
     >
       {/* Session Info Bar */}
-      <div className="bg-white border-b px-4 py-2" data-testid="session-info">
+      <div className="bg-bg-secondary border-b border-border-primary px-4 py-2" data-testid="session-info">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-text-primary flex items-center gap-2">
               <BeakerIcon className="h-6 w-6 text-blue-600" />
               Discovery Studio
             </h1>
             {epicName && (
-              <span className="text-sm text-gray-600 font-medium">{epicName}</span>
+              <span className="text-sm text-text-secondary font-medium">{epicName}</span>
             )}
             <span
               className={clsx(
@@ -188,7 +188,7 @@ export default function StudioDiscoveryPage({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-3 py-1.5 text-sm border border-border-primary rounded hover:bg-bg-tertiary text-text-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               disabled={!outline}
             >
               <DocumentTextIcon className="h-4 w-4" />
@@ -250,13 +250,13 @@ export default function StudioDiscoveryPage({
           )}
           data-testid="outline-column"
         >
-          <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border-primary bg-bg-tertiary">
             <h2 className={clsx('text-sm font-medium', isOutlineCollapsed && 'hidden')}>
               Working Outline
             </h2>
             <button
               type="button"
-              className="text-gray-500 hover:text-gray-700"
+              className="text-text-muted hover:text-text-secondary"
               onClick={() => setIsOutlineCollapsed(!isOutlineCollapsed)}
               data-testid="collapse-outline-btn"
               aria-label={isOutlineCollapsed ? 'Expand outline' : 'Collapse outline'}
@@ -283,13 +283,13 @@ export default function StudioDiscoveryPage({
           )}
           data-testid="output-column"
         >
-          <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border-primary bg-bg-tertiary">
             <h2 className={clsx('text-sm font-medium', isOutputCollapsed && 'hidden')}>
               Output Quickview
             </h2>
             <button
               type="button"
-              className="text-gray-500 hover:text-gray-700"
+              className="text-text-muted hover:text-text-secondary"
               onClick={() => setIsOutputCollapsed(!isOutputCollapsed)}
               data-testid="collapse-output-btn"
               aria-label={isOutputCollapsed ? 'Expand output' : 'Collapse output'}

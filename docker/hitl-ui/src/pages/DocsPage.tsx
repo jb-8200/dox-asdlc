@@ -271,13 +271,13 @@ export default function DocsPage() {
     <div className="space-y-8">
       {/* System Overview */}
       <section>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">System Overview</h2>
+        <h2 className="text-xl font-semibold text-text-primary mb-4">System Overview</h2>
         <BlueprintMap clusters={mockClusters} showFlow />
       </section>
 
       {/* Methodology Stages */}
       <section>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Methodology Stages</h2>
+        <h2 className="text-xl font-semibold text-text-primary mb-4">Methodology Stages</h2>
         <MethodologyStepper stages={mockStages} />
       </section>
     </div>
@@ -317,7 +317,7 @@ export default function DocsPage() {
     <div className="flex flex-col md:flex-row gap-4 md:gap-6 h-full">
       {/* Mobile sidebar toggle */}
       <button
-        className="md:hidden flex items-center gap-2 px-4 py-2 bg-white rounded-lg border text-sm font-medium text-gray-700 hover:bg-gray-50"
+        className="md:hidden flex items-center gap-2 px-4 py-2 bg-bg-secondary rounded-lg border border-bg-tertiary text-sm font-medium text-text-secondary hover:bg-bg-tertiary"
         onClick={() => setSidebarOpen(!sidebarOpen)}
         aria-expanded={sidebarOpen}
         data-testid="sidebar-toggle"
@@ -336,7 +336,7 @@ export default function DocsPage() {
       {/* Sidebar - Document Browser */}
       <div
         className={clsx(
-          'bg-white rounded-lg border p-4 overflow-y-auto transition-all duration-200',
+          'bg-bg-secondary rounded-lg border border-bg-tertiary p-4 overflow-y-auto transition-all duration-200',
           'md:w-64 md:flex-shrink-0 md:block',
           sidebarOpen ? 'block' : 'hidden md:block'
         )}
@@ -344,9 +344,9 @@ export default function DocsPage() {
       >
         {docsLoading ? (
           <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-3/4" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
-            <div className="h-4 bg-gray-200 rounded w-2/3" />
+            <div className="h-4 bg-bg-tertiary rounded w-3/4" />
+            <div className="h-4 bg-bg-tertiary rounded w-1/2" />
+            <div className="h-4 bg-bg-tertiary rounded w-2/3" />
           </div>
         ) : (
           <DocBrowser
@@ -358,7 +358,7 @@ export default function DocsPage() {
       </div>
 
       {/* Main content - Document Viewer */}
-      <div className="flex-1 bg-white rounded-lg border p-4 md:p-6 overflow-y-auto min-h-[300px]">
+      <div className="flex-1 bg-bg-secondary rounded-lg border border-bg-tertiary p-4 md:p-6 overflow-y-auto min-h-[300px]">
         {selectedDocId && selectedDocument ? (
           <DocViewer document={selectedDocument} />
         ) : selectedDocId ? (
@@ -409,13 +409,13 @@ export default function DocsPage() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 max-w-7xl mx-auto" data-testid="docs-page">
+    <div className="h-full flex flex-col bg-bg-primary max-w-7xl mx-auto" data-testid="docs-page">
       {/* Header with Search */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-bg-secondary border-b border-bg-tertiary px-6 py-4">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Documentation</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-2xl font-bold text-text-primary">Documentation</h1>
+            <p className="text-sm text-text-secondary mt-1">
               Learn about the aSDLC methodology and how to use the system effectively
             </p>
           </div>
@@ -430,7 +430,7 @@ export default function DocsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b">
+      <div className="bg-bg-secondary border-b border-bg-tertiary">
         <div className="px-6">
           <nav className="flex gap-4" role="tablist" data-testid="tabs-container">
             {tabs.map((tab) => (
@@ -441,7 +441,7 @@ export default function DocsPage() {
                   'py-3 px-4 border-b-2 font-medium text-sm transition-colors',
                   activeTab === tab.id
                     ? 'border-accent-teal text-accent-teal'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    : 'border-transparent text-text-secondary hover:text-text-primary'
                 )}
                 role="tab"
                 aria-selected={activeTab === tab.id}
