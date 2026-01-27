@@ -36,7 +36,7 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.gitCredentials.secretName | default (printf "%s-redis-auth" (include "orchestrator.parentFullname" .)) }}
+                  name: {{ printf "%s-redis-auth" (include "orchestrator.parentFullname" .) }}
                   key: redis-password
                   optional: true
             - name: CLAUDE_API_KEY
