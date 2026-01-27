@@ -12,7 +12,8 @@ registered with the default registry to provide on-demand metric collection.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Iterator, Protocol
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any, Protocol
 
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
@@ -220,6 +221,20 @@ class ProcessMetricsCollector(Collector):
         memory.add_metric([self.service_name, "rss"], memory_info.rss)
         memory.add_metric([self.service_name, "vms"], memory_info.vms)
         yield memory
+
+        # CPU usage gauge (percentage)
+        cpu = GaugeMetricFamily(
+            "asdlc_process_cpu_percent",
+            "Process CPU usage percentage",
+            labels=["service"],
+        )
+        try:
+            cpu_percent = process.cpu_percent(interval=None)
+            cpu.add_metric([self.service_name], cpu_percent)
+        except Exception as e:
+            logger.warning(f"Failed to get CPU percent: {e}")
+            cpu.add_metric([self.service_name], 0.0)
+        yield cpu
 
 
 __all__ = [

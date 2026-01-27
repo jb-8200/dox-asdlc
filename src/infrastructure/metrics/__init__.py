@@ -37,6 +37,7 @@ from src.infrastructure.metrics.definitions import (
     ACTIVE_TASKS,
     ACTIVE_WORKERS,
     EVENTS_PROCESSED,
+    PROCESS_CPU_PERCENT,
     PROCESS_MEMORY_BYTES,
     REDIS_CONNECTION_UP,
     REDIS_LATENCY,
@@ -70,6 +71,7 @@ __all__ = [
     "REDIS_CONNECTION_UP",
     "REDIS_LATENCY",
     "PROCESS_MEMORY_BYTES",
+    "PROCESS_CPU_PERCENT",
     # Middleware
     "PrometheusMiddleware",
     "normalize_endpoint_path",

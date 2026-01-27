@@ -13,7 +13,7 @@ import logging
 import os
 import random
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -21,8 +21,8 @@ import httpx
 from src.orchestrator.api.models.service_health import (
     ServiceHealthInfo,
     ServiceHealthStatus,
-    ServiceSparklineResponse,
     ServicesHealthResponse,
+    ServiceSparklineResponse,
     SparklineDataPoint,
 )
 
@@ -45,13 +45,13 @@ VALID_SERVICES: set[str] = {
     "elasticsearch",
 }
 
-# Service name to pod label mappings
+# Service name to pod label mappings (use service= to match scrape.yml)
 SERVICE_POD_LABELS: dict[str, str] = {
-    "hitl-ui": 'app="hitl-ui"',
-    "orchestrator": 'app="orchestrator"',
-    "workers": 'app="workers"',
-    "redis": 'app="redis"',
-    "elasticsearch": 'app="elasticsearch"',
+    "hitl-ui": 'service="hitl-ui"',
+    "orchestrator": 'service="orchestrator"',
+    "workers": 'service="workers"',
+    "redis": 'service="redis"',
+    "elasticsearch": 'service="elasticsearch"',
 }
 
 # Health status thresholds
@@ -246,20 +246,21 @@ class ServiceHealthService:
         Returns:
             ServiceHealthInfo with current metrics.
         """
-        label = SERVICE_POD_LABELS.get(service_name, f'app="{service_name}"')
+        label = SERVICE_POD_LABELS.get(service_name, f'service="{service_name}"')
 
-        # Query CPU usage
-        cpu_query = f'rate(process_cpu_seconds_total{{{label}}}[5m]) * 100'
+        # Query CPU usage (use asdlc_process_cpu_percent - already percentage)
+        cpu_query = f'asdlc_process_cpu_percent{{{label}}}'
         cpu_data = await self._query_instant(cpu_query)
         cpu_percent = self._extract_value(cpu_data)
 
-        # Query memory usage (convert to percentage)
-        memory_query = f'process_resident_memory_bytes{{{label}}} / container_spec_memory_limit_bytes{{{label}}} * 100'
+        # Query memory usage (use asdlc_process_memory_bytes, convert to percentage)
+        # Try percentage based on assumed 1GB limit first
+        memory_query = f'asdlc_process_memory_bytes{{type="rss", {label}}} / 1073741824 * 100'
         memory_data = await self._query_instant(memory_query)
         memory_percent = self._extract_value(memory_data)
-        # If memory limit query fails, use raw memory value as a fallback estimate
+        # If percentage query fails, use raw memory value as a fallback estimate
         if memory_percent == 0.0:
-            raw_memory_query = f'process_resident_memory_bytes{{{label}}}'
+            raw_memory_query = f'asdlc_process_memory_bytes{{type="rss", {label}}}'
             raw_memory_data = await self._query_instant(raw_memory_query)
             raw_memory = self._extract_value(raw_memory_data)
             # Estimate percentage based on 1GB assumed limit
@@ -345,7 +346,7 @@ class ServiceHealthService:
 
         return ServicesHealthResponse(
             services=services,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
 
     async def get_service_sparkline(
@@ -372,17 +373,17 @@ class ServiceHealthService:
                 return cached
 
         # Build query based on metric type
-        label = SERVICE_POD_LABELS.get(service_name, f'app="{service_name}"')
+        label = SERVICE_POD_LABELS.get(service_name, f'service="{service_name}"')
         query_map = {
-            "cpu": f'rate(process_cpu_seconds_total{{{label}}}[5m]) * 100',
-            "memory": f'process_resident_memory_bytes{{{label}}} / 1024 / 1024',  # MB
+            "cpu": f'asdlc_process_cpu_percent{{{label}}}',
+            "memory": f'asdlc_process_memory_bytes{{type="rss", {label}}} / 1024 / 1024',  # MB
             "requests": f'sum(rate(asdlc_http_requests_total{{{label}}}[5m]))',
             "latency": f'histogram_quantile(0.50, sum(rate(asdlc_http_request_duration_seconds_bucket{{{label}}}[5m])) by (le)) * 1000',
         }
         query = query_map.get(metric, query_map["cpu"])
 
         # Calculate time range (15 minutes)
-        end = datetime.now(timezone.utc)
+        end = datetime.now(UTC)
         start = end - timedelta(minutes=15)
         start_str = start.strftime("%Y-%m-%dT%H:%M:%SZ")
         end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")

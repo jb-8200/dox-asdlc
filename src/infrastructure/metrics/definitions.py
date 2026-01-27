@@ -91,6 +91,12 @@ PROCESS_MEMORY_BYTES = Gauge(
     ["service", "type"],
 )
 
+PROCESS_CPU_PERCENT = Gauge(
+    "asdlc_process_cpu_percent",
+    "Process CPU utilization percentage",
+    ["service"],
+)
+
 # =============================================================================
 # Exports
 # =============================================================================
@@ -105,4 +111,5 @@ __all__ = [
     "REDIS_CONNECTION_UP",
     "REDIS_LATENCY",
     "PROCESS_MEMORY_BYTES",
+    "PROCESS_CPU_PERCENT",
 ]

@@ -353,6 +353,82 @@ class TestProcessMetricsCollector:
         for sample in samples:
             assert sample.labels["service"] == "my-service"
 
+    @patch("src.infrastructure.metrics.collectors.psutil")
+    def test_collect_yields_cpu_gauge(self, mock_psutil: MagicMock) -> None:
+        """Should yield CPU percentage gauge from collect()."""
+        from src.infrastructure.metrics.collectors import ProcessMetricsCollector
+
+        mock_process = MagicMock()
+        mock_process.memory_info.return_value = MagicMock(rss=1024000, vms=2048000)
+        mock_process.cpu_percent.return_value = 25.5
+        mock_psutil.Process.return_value = mock_process
+
+        collector = ProcessMetricsCollector(service_name="test-service")
+
+        metrics = list(collector.collect())
+
+        metric_names = [m.name for m in metrics]
+        assert "asdlc_process_cpu_percent" in metric_names
+
+    @patch("src.infrastructure.metrics.collectors.psutil")
+    def test_collect_cpu_has_service_label(self, mock_psutil: MagicMock) -> None:
+        """Should include service label in CPU metric."""
+        from src.infrastructure.metrics.collectors import ProcessMetricsCollector
+
+        mock_process = MagicMock()
+        mock_process.memory_info.return_value = MagicMock(rss=1024000, vms=2048000)
+        mock_process.cpu_percent.return_value = 50.0
+        mock_psutil.Process.return_value = mock_process
+
+        collector = ProcessMetricsCollector(service_name="my-service")
+
+        metrics = list(collector.collect())
+
+        cpu = next(m for m in metrics if m.name == "asdlc_process_cpu_percent")
+        samples = list(cpu.samples)
+
+        assert len(samples) == 1
+        assert samples[0].labels["service"] == "my-service"
+
+    @patch("src.infrastructure.metrics.collectors.psutil")
+    def test_collect_cpu_value_correct(self, mock_psutil: MagicMock) -> None:
+        """Should collect correct CPU percentage value."""
+        from src.infrastructure.metrics.collectors import ProcessMetricsCollector
+
+        mock_process = MagicMock()
+        mock_process.memory_info.return_value = MagicMock(rss=1024000, vms=2048000)
+        mock_process.cpu_percent.return_value = 75.3
+        mock_psutil.Process.return_value = mock_process
+
+        collector = ProcessMetricsCollector(service_name="test-service")
+
+        metrics = list(collector.collect())
+
+        cpu = next(m for m in metrics if m.name == "asdlc_process_cpu_percent")
+        samples = list(cpu.samples)
+
+        assert samples[0].value == 75.3
+
+    @patch("src.infrastructure.metrics.collectors.psutil")
+    def test_collect_cpu_handles_exception(self, mock_psutil: MagicMock) -> None:
+        """Should yield 0.0 CPU when cpu_percent raises exception."""
+        from src.infrastructure.metrics.collectors import ProcessMetricsCollector
+
+        mock_process = MagicMock()
+        mock_process.memory_info.return_value = MagicMock(rss=1024000, vms=2048000)
+        mock_process.cpu_percent.side_effect = Exception("CPU error")
+        mock_psutil.Process.return_value = mock_process
+
+        collector = ProcessMetricsCollector(service_name="test-service")
+
+        metrics = list(collector.collect())
+
+        # Should still yield CPU metric with 0.0 value
+        cpu = next(m for m in metrics if m.name == "asdlc_process_cpu_percent")
+        samples = list(cpu.samples)
+
+        assert samples[0].value == 0.0
+
 
 class TestCollectorRegistration:
     """Tests for collector registration with Prometheus registry."""
