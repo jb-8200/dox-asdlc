@@ -14,11 +14,17 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
     {{- if .Values.mcpSidecar.enabled }}
     - port: {{ .Values.mcpSidecar.port }}
       targetPort: mcp
       protocol: TCP
       name: mcp
+      {{- if and (eq .Values.service.type "NodePort") .Values.mcpSidecar.nodePort }}
+      nodePort: {{ .Values.mcpSidecar.nodePort }}
+      {{- end }}
     {{- end }}
   selector:
     {{- include "elasticsearch.selectorLabels" . | nindent 4 }}

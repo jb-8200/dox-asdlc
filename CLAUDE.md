@@ -135,12 +135,12 @@ ks_get doc_id="src/core/interfaces.py:0"
 
 The MCP is configured in `.mcp.json` (user-specific, not committed). Requires Elasticsearch at localhost:9200.
 
-**For K8s Elasticsearch:** Run port-forward first:
+**For K8s Services:** Start port-forwards for MCP access:
 ```bash
-./scripts/k8s/port-forward-mcp.sh elasticsearch
-# Or for all MCP services:
-./scripts/k8s/port-forward-mcp.sh all
+./scripts/k8s/port-forward-mcp.sh all  # ES, Redis MCP, HITL UI
 ```
+
+See `docs/K8s_Service_Access.md` for full architecture and options.
 
 ## Related Docs
 

@@ -5,6 +5,15 @@ global:
   namespace: dox-asdlc
   imagePullPolicy: IfNotPresent
 
+# Ingress for HTTP services (orchestrator API, HITL UI)
+ingress:
+  enabled: true
+  className: nginx
+  host: dox.local
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+
 # Namespace configuration for development
 namespace:
   create: true
@@ -44,9 +53,14 @@ redis:
     enabled: true
   aof:
     enabled: false  # Use RDB only for faster dev restarts
+  # NodePort for workstation access without port-forward
+  service:
+    type: NodePort
+    nodePort: 30637  # Redis: $(minikube ip):30637
   # MCP sidecar enabled for development
   mcpSidecar:
     enabled: true
+    nodePort: 30900  # Redis MCP: $(minikube ip):30900
 
 # Orchestrator development configuration
 orchestrator:
@@ -100,9 +114,14 @@ multiTenancy:
 
 # Elasticsearch development configuration
 elasticsearch:
+  # NodePort for workstation access without port-forward
+  service:
+    type: NodePort
+    nodePort: 30920  # ES: $(minikube ip):30920
   # MCP sidecar enabled for development
   mcpSidecar:
     enabled: true
+    nodePort: 30921  # ES MCP: $(minikube ip):30921
 
 # Shared environment variables (development overrides)
 sharedEnv:

@@ -1,0 +1,68 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | default "nginx" }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- range .Values.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          # API routes to orchestrator
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-orchestrator
+                port:
+                  number: 8080
+          # Health and docs routes to orchestrator
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-orchestrator
+                port:
+                  number: 8080
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-orchestrator
+                port:
+                  number: 8080
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: {{ .Release.Name }}-orchestrator
+                port:
+                  number: 8080
+          # Everything else to HITL UI
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-hitl-ui
+                port:
+                  number: 3000
+{{- end }}
