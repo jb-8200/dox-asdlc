@@ -37,6 +37,35 @@ vi.mock('../api/devops', () => ({
   }),
 }));
 
+// Mock the Services API module
+vi.mock('../api/services', () => ({
+  useServicesHealth: () => ({
+    data: {
+      services: [
+        { name: 'orchestrator', status: 'healthy', cpuPercent: 40, memoryPercent: 55, podCount: 1 },
+        { name: 'worker-pool', status: 'healthy', cpuPercent: 35, memoryPercent: 45, podCount: 3 },
+      ],
+      connections: [
+        { source: 'orchestrator', target: 'worker-pool', status: 'healthy' },
+      ],
+      timestamp: new Date().toISOString(),
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useServiceSparkline: () => ({
+    data: { dataPoints: [] },
+    isLoading: false,
+    error: null,
+  }),
+  servicesQueryKeys: { 
+    all: () => ['services'],
+    health: () => ['services', 'health'],
+    sparkline: (name: string, metric: string) => ['services', 'sparkline', name, metric],
+  },
+}));
+
 // Mock the API module
 vi.mock('../api/metrics', async () => {
   const actual = await vi.importActual('../api/metrics');
@@ -273,6 +302,52 @@ describe('MetricsPage', () => {
     it('renders metrics grid', () => {
       renderWithProviders();
       expect(screen.getByTestId('metrics-grid')).toBeInTheDocument();
+    });
+  });
+
+  describe('Service Health Section', () => {
+    it('renders service health section', async () => {
+      renderWithProviders();
+      await waitFor(() => {
+        expect(screen.getByTestId('service-health-section')).toBeInTheDocument();
+      });
+    });
+
+    it('renders service health section toggle', async () => {
+      renderWithProviders();
+      await waitFor(() => {
+        expect(screen.getByTestId('service-health-section-toggle')).toBeInTheDocument();
+      });
+    });
+
+    it('service health section is expanded by default', async () => {
+      renderWithProviders();
+      await waitFor(() => {
+        const toggle = screen.getByTestId('service-health-section-toggle');
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      });
+    });
+
+    it('toggles service health section on click', async () => {
+      renderWithProviders();
+      await waitFor(() => {
+        const toggle = screen.getByTestId('service-health-section-toggle');
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      });
+
+      const toggle = screen.getByTestId('service-health-section-toggle');
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('renders ServiceHealthDashboard component when expanded', async () => {
+      renderWithProviders();
+      await waitFor(() => {
+        expect(screen.getByTestId('service-health-dashboard')).toBeInTheDocument();
+      });
     });
   });
 

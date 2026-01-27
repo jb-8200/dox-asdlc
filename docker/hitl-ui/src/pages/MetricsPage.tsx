@@ -11,6 +11,7 @@
  * - Resource metrics (CPU, Memory)
  * - Request metrics (Rate, Latency percentiles)
  * - Active tasks gauge
+ * - Service health section (P06-F07)
  * - DevOps activity section (T26)
  */
 
@@ -39,6 +40,7 @@ import {
   MetricsBackendSelector,
 } from "../components/metrics";
 import { DevOpsActivityPanel } from "../components/devops";
+import { ServiceHealthDashboard } from "../components/services";
 
 export interface MetricsPageProps {
   /** Custom class name */
@@ -59,7 +61,8 @@ export default function MetricsPage({ className }: MetricsPageProps) {
     toggleAutoRefresh,
   } = useMetricsStore();
 
-  // DevOps activity collapsible state
+  // Collapsible section states
+  const [serviceHealthExpanded, setServiceHealthExpanded] = useState(true);
   const [devOpsExpanded, setDevOpsExpanded] = useState(true);
 
   // Calculate effective refresh interval
@@ -117,12 +120,18 @@ export default function MetricsPage({ className }: MetricsPageProps) {
     // Invalidate all metrics queries to trigger refetch
     queryClient.invalidateQueries({ queryKey: ["metrics"] });
     queryClient.invalidateQueries({ queryKey: ["devops"] });
+    queryClient.invalidateQueries({ queryKey: ["services"] });
   }, [queryClient]);
 
   // DevOps refresh handler
   const handleDevOpsRefresh = useCallback(() => {
     refetchDevOps();
   }, [refetchDevOps]);
+
+  // Toggle Service Health section
+  const toggleServiceHealthSection = useCallback(() => {
+    setServiceHealthExpanded((prev) => !prev);
+  }, []);
 
   // Toggle DevOps section
   const toggleDevOpsSection = useCallback(() => {
@@ -239,6 +248,26 @@ export default function MetricsPage({ className }: MetricsPageProps) {
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 gap-6" data-testid="metrics-grid">
+          {/* Service Health Section */}
+          <section data-testid="service-health-section">
+            <button
+              onClick={toggleServiceHealthSection}
+              className="flex items-center gap-2 text-lg font-semibold text-text-primary mb-4 hover:text-accent-blue transition-colors"
+              aria-expanded={serviceHealthExpanded}
+              data-testid="service-health-section-toggle"
+            >
+              Service Health
+              {serviceHealthExpanded ? (
+                <ChevronUpIcon className="h-5 w-5" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5" />
+              )}
+            </button>
+            {serviceHealthExpanded && (
+              <ServiceHealthDashboard />
+            )}
+          </section>
+
           {/* Resource Metrics Section */}
           <section data-testid="resource-metrics-section">
             <h2 className="text-lg font-semibold text-text-primary mb-4">Resource Utilization</h2>
