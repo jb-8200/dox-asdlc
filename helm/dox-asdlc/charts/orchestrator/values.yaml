@@ -48,7 +48,7 @@ readinessProbe:
 
 # Environment configuration
 env:
-  REDIS_URL: "redis://redis:6379"
+  REDIS_HOST: "dox-asdlc-redis"
   KNOWLEDGE_STORE_URL: "http://knowledge-store:8000"
   LOG_LEVEL: "INFO"
   # Multi-tenancy settings
