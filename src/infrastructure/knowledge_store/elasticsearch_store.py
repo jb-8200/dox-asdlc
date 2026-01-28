@@ -176,6 +176,11 @@ class ElasticsearchStore:
             - date_from -> range query on indexed_at with gte
             - date_to -> range query on indexed_at with lte
 
+        Note:
+            Text fields use the `.keyword` subfield for exact matching in
+            term/terms queries. Date fields (like indexed_at) do not need
+            this suffix since they are mapped as date type.
+
         Args:
             filters: Dictionary of metadata field:value pairs.
 
@@ -198,10 +203,11 @@ class ElasticsearchStore:
             es_key = FILTER_KEY_MAP.get(key, key)
 
             # Use 'terms' for list values, 'term' for single values
+            # Text fields require .keyword suffix for exact matching
             if isinstance(value, list):
-                filter_clauses.append({"terms": {f"metadata.{es_key}": value}})
+                filter_clauses.append({"terms": {f"metadata.{es_key}.keyword": value}})
             else:
-                filter_clauses.append({"term": {f"metadata.{es_key}": value}})
+                filter_clauses.append({"term": {f"metadata.{es_key}.keyword": value}})
 
         # Add date range filter if any date filters were provided
         if date_range:
