@@ -82,6 +82,21 @@ This pattern ensures:
 - Failures are isolated and recoverable
 - User can intervene between tasks
 
+## Environment Awareness
+
+Before invoking DevOps, PM CLI should determine the target environment tier:
+
+| Tier | Platform | Best For |
+|------|----------|----------|
+| Local Dev | Docker Compose | Rapid UI/backend iteration |
+| Local Staging | K8s (minikube) | Helm chart testing |
+| Remote Lab | GCP Cloud Run | Demos |
+| Remote Staging | GCP GKE | Pre-production |
+
+**For rapid development:** Prefer Docker Compose over K8s. K8s rebuilds are slow.
+
+See `docs/environments/README.md` for detailed guides.
+
 ## Multi-CLI Coordination
 
 When devops operations are needed, PM CLI presents options to the user:

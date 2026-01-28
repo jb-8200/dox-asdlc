@@ -15,7 +15,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - REDIS_HOST=infrastructure
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SERVICE_NAME=orchestrator
       - SERVICE_PORT=8080
@@ -26,7 +26,7 @@ services:
       - ../:/app/workspace:rw
       - git-credentials:/app/.git-credentials:ro
     depends_on:
-      infrastructure:
+      redis:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
@@ -52,7 +52,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - REDIS_HOST=infrastructure
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SERVICE_NAME=workers
       - SERVICE_PORT=8081
@@ -62,7 +62,7 @@ services:
     volumes:
       - ../:/app/workspace:ro
     depends_on:
-      infrastructure:
+      redis:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
@@ -75,14 +75,14 @@ services:
     networks:
       - asdlc-network
 
-  # Container 3: Infrastructure Services
-  # - Redis for event streams and task state caches
-  infrastructure:
+  # Container 3: Redis
+  # - Event streams and task state caches
+  redis:
     build:
       context: ..
       dockerfile: docker/infrastructure/Dockerfile
-    container_name: asdlc-infrastructure
-    hostname: infrastructure
+    container_name: asdlc-redis
+    hostname: redis
     ports:
       - "6379:6379"
     volumes:
@@ -101,7 +101,7 @@ services:
   # - Stores document embeddings with kNN search
   # - Replaces ChromaDB as the default backend
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
     container_name: asdlc-elasticsearch
     hostname: elasticsearch
     ports:
@@ -127,7 +127,7 @@ services:
   # - Stores aSDLC service metrics for monitoring
   # - Query API for dashboards and alerting
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.96.0
+    image: victoriametrics/victoria-metrics:v1.106.1
     container_name: asdlc-victoriametrics
     hostname: victoriametrics
     ports:
@@ -163,13 +163,13 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REDIS_HOST=infrastructure
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SERVICE_NAME=hitl-ui
       - SERVICE_PORT=3000
-      - API_URL=http://orchestrator:8080
+      - API_BACKEND_URL=http://orchestrator:8080
     depends_on:
-      infrastructure:
+      redis:
         condition: service_healthy
       orchestrator:
         condition: service_healthy

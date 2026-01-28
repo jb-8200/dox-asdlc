@@ -20,6 +20,54 @@ This agent handles infrastructure operations that affect running systems. It req
 - CI/CD pipeline operations
 - Infrastructure-as-Code (Terraform, Pulumi)
 
+## Environment Tiers
+
+This project uses a tiered environment strategy. DevOps should understand and target the appropriate tier.
+
+| Tier | Platform | When to Use | Docs |
+|------|----------|-------------|------|
+| **Local Dev** | Docker Compose | Rapid iteration | `docs/environments/local-dev.md` |
+| **Local Staging** | K8s (minikube) | K8s testing, Helm validation | `docs/environments/local-staging.md` |
+| **Remote Lab** | GCP Cloud Run | Demos, quick deploys | `docs/environments/remote-lab.md` |
+| **Remote Staging** | GCP GKE | Pre-production | `docs/environments/remote-staging.md` |
+
+### Environment Detection
+
+```bash
+# Check current context
+if kubectl config current-context 2>/dev/null | grep -q "minikube\|dox-asdlc"; then
+    echo "Local Staging (minikube)"
+elif kubectl config current-context 2>/dev/null | grep -q "gke"; then
+    echo "Remote Staging (GKE)"
+elif docker compose ps 2>/dev/null | grep -q "asdlc"; then
+    echo "Local Dev (Docker Compose)"
+fi
+```
+
+### Quick Commands by Environment
+
+**Local Dev:**
+```bash
+cd docker && docker compose up -d
+docker compose build <service>
+```
+
+**Local Staging:**
+```bash
+minikube image load <image> -p dox-asdlc
+helm upgrade --install dox-asdlc ./helm/dox-asdlc -n dox-asdlc
+```
+
+**Remote Lab:**
+```bash
+gcloud run deploy <service> --image gcr.io/$PROJECT_ID/<service>
+```
+
+**Remote Staging:**
+```bash
+helm upgrade --install dox-asdlc ./helm/dox-asdlc -n dox-staging
+```
+
 ## Domain
 
 DevOps can modify:
@@ -28,7 +76,17 @@ DevOps can modify:
 - `.github/workflows/` - GitHub Actions
 - `scripts/k8s/` - Kubernetes scripts
 - `scripts/deploy/` - Deployment scripts
+- `docs/environments/` - Environment documentation
 - Infrastructure configuration files
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `docker/docker-compose.yml` | Local dev stack |
+| `docker/victoriametrics/scrape.yml` | Metrics scrape config |
+| `helm/dox-asdlc/` | K8s Helm charts |
+| `docs/environments/*.md` | Environment guides |
 
 ## Invocation Protocol
 

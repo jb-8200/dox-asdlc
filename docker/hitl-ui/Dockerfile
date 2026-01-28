@@ -50,7 +50,7 @@ ENV NODE_ENV=production \
 COPY docker/hitl-ui/package.json ./
 
 # Install only express for serving static files
-RUN npm install express@4 --save && \
+RUN npm install express@4 http-proxy-middleware@3 --save && \
     chown -R asdlc:asdlc /app
 
 # Copy built assets from builder stage

@@ -6,6 +6,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +17,7 @@ const SERVICE_NAME = process.env.SERVICE_NAME || 'hitl-ui';
 const SERVICE_PORT = parseInt(process.env.SERVICE_PORT || '3000', 10);
 const REDIS_HOST = process.env.REDIS_HOST || 'infrastructure';
 const REDIS_PORT = process.env.REDIS_PORT || '6379';
+const API_BACKEND_URL = process.env.API_BACKEND_URL || 'http://dox-asdlc-orchestrator:8080';
 
 /**
  * Generate health check response
@@ -43,6 +45,17 @@ app.get('/health', (req, res) => {
   const health = getHealthStatus();
   res.json(health);
 });
+
+// Proxy /api requests to orchestrator backend
+app.use('/api', createProxyMiddleware({
+  target: API_BACKEND_URL,
+  changeOrigin: true,
+  timeout: 30000,
+  onError: (err, req, res) => {
+    console.error(`[${SERVICE_NAME}] Proxy error:`, err.message);
+    res.status(502).json({ error: 'Backend unavailable', message: err.message });
+  },
+}));
 
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
