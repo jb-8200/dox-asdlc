@@ -1,0 +1,105 @@
+%% File: docs/diagrams/25-snowflake-graph-components.mmd
+%% Description: Snowflake Graph View UI component architecture (MVP and Future)
+%% Updated: 2026-01-31
+
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#DBEAFE'}}}%%
+
+flowchart TB
+    subgraph Page["MindflareGraphPage"]
+        direction TB
+
+        subgraph Header["Header Bar"]
+            Search["Search Input\n(typeahead)"]
+            ModeSwitch["Mode Switch\n(List | Graph)"]
+            Breadcrumb["Breadcrumb\n(current focus)"]
+        end
+
+        subgraph MainLayout["Main Layout (3 columns)"]
+            subgraph LeftRail["Left Control Rail"]
+                direction TB
+                FiltersSection["Filters Section"]
+                GroupsSection["Groups Section\n(Future F07)"]
+                DisplaySection["Display Section\n(Future F07)"]
+                ForcesSection["Forces Section\n(Future F07)"]
+            end
+
+            subgraph Center["Graph Canvas"]
+                direction TB
+                GraphContainer["SnowflakeGraph\n(react-force-graph-2d)"]
+                subgraph Layers["Rendering Layers"]
+                    EdgeLayer["Edge Layer\n(Canvas lines)"]
+                    NodeLayer["Node Layer\n(Canvas circles)"]
+                    LabelLayer["Label Layer\n(Canvas text)"]
+                    SelectionLayer["Selection Layer\n(highlights)"]
+                end
+            end
+
+            subgraph RightPanel["Right Inspector"]
+                direction TB
+                NodeDetails["Node Details\n(selected idea)"]
+                EdgeDetails["Edge Details\n(Why connected?)"]
+                CorrelationList["Correlation List"]
+                BakeButton["Bake in Studio"]
+            end
+        end
+
+        subgraph StatusBar["Status Bar (optional)"]
+            NodeCount["Node/Edge Count"]
+            ZoomLevel["Zoom Level"]
+            LayoutState["Layout State"]
+        end
+    end
+
+    subgraph State["State Management (Zustand)"]
+        GraphViewStore["graphViewStore"]
+        subgraph StoreState["Store State"]
+            FilterState["filters:\n• searchQuery\n• showTags\n• showInferred"]
+            SelectionState["selection:\n• selectedNodeId\n• hoveredNodeId"]
+            ViewState["view:\n• zoom\n• centerX/Y"]
+            LayoutState2["layout:\n• isRunning\n• forceParams"]
+        end
+    end
+
+    subgraph DataHooks["Data Hooks"]
+        UseGraphData["useGraphData()\n→ fetch nodes, edges"]
+        UseCorrelations["useCorrelations()\n→ fetch for selected"]
+    end
+
+    subgraph API["API Layer"]
+        GraphAPI["GET /api/ideas/graph"]
+        CorrelationAPI["GET /api/ideas/{id}/correlations"]
+    end
+
+    %% Connections
+    Header --> MainLayout
+    MainLayout --> StatusBar
+
+    LeftRail -->|"filter changes"| GraphViewStore
+    GraphContainer -->|"selection"| GraphViewStore
+    RightPanel -->|"actions"| GraphViewStore
+
+    GraphViewStore --> GraphContainer
+    GraphViewStore --> RightPanel
+    GraphViewStore --> LeftRail
+
+    UseGraphData --> GraphAPI
+    UseCorrelations --> CorrelationAPI
+    UseGraphData --> GraphContainer
+    UseCorrelations --> RightPanel
+
+    %% MVP vs Future annotations
+    subgraph Legend["Legend"]
+        MVP["MVP (P08-F06)\n• Basic filters\n• Graph canvas\n• Node details"]
+        Future["Future (P08-F07)\n• Full controls\n• 3D view\n• Mobile"]
+    end
+
+    %% Styling
+    classDef mvp fill:#D1FAE5,stroke:#059669,stroke-width:2px
+    classDef future fill:#F3F4F6,stroke:#9CA3AF,stroke-width:1px,stroke-dasharray: 5 5
+    classDef state fill:#FEF3C7,stroke:#D97706,stroke-width:2px
+    classDef api fill:#DBEAFE,stroke:#2563EB,stroke-width:2px
+
+    class Search,ModeSwitch,FiltersSection,GraphContainer,EdgeLayer,NodeLayer,LabelLayer,SelectionLayer,NodeDetails,CorrelationList,BakeButton mvp
+    class GroupsSection,DisplaySection,ForcesSection,EdgeDetails,Breadcrumb,StatusBar future
+    class GraphViewStore,FilterState,SelectionState,ViewState,LayoutState2 state
+    class UseGraphData,UseCorrelations,GraphAPI,CorrelationAPI api

@@ -1,0 +1,101 @@
+%% File: docs/diagrams/24-mindflare-data-flow.mmd
+%% Description: Data flow from idea creation through classification, correlation, and visualization
+%% Updated: 2026-01-31
+
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#DBEAFE'}}}%%
+
+flowchart LR
+    subgraph Sources["Idea Sources"]
+        Manual["Manual Entry\n(Web UI)"]
+        SlackMsg["Slack Message\n(#ideas channel)"]
+        SlackEmoji["Slack Emoji\n(lightbulb reaction)"]
+    end
+
+    subgraph Ingestion["Ingestion (P08-F01)"]
+        Validate["Validate\n(144 words max)"]
+        Embed["Generate\nEmbedding"]
+        Store["Store in\nElasticsearch"]
+    end
+
+    subgraph Classification["Classification (P08-F03)"]
+        Queue1["Redis Queue"]
+        LLM["LLM Agent\n(Claude/GPT)"]
+        Labels["Assign Labels\n• functional/non-functional\n• system area\n• category"]
+    end
+
+    subgraph Correlation["Correlation (P08-F04)"]
+        Queue2["Redis Queue"]
+        Similarity["Vector Similarity\n(kNN search)"]
+        GraphStore["Graph Store\n(Redis or Neo4j)"]
+        Cluster["Community\nDetection"]
+    end
+
+    subgraph Visualization["Visualization (P08-F05, F06)"]
+        ListView["List View\n(Twitter cards)"]
+        GraphView["Graph View\n(Snowflake)"]
+        Filters["Filter Panel"]
+    end
+
+    subgraph Actions["User Actions"]
+        Bake["Bake in Studio\n→ Ideation"]
+        Accept["Accept\nCorrelation"]
+        Reject["Reject\nCorrelation"]
+        Refine["Refine\nCorrelation"]
+    end
+
+    %% Source flows
+    Manual --> Validate
+    SlackMsg --> Validate
+    SlackEmoji --> Validate
+
+    %% Ingestion flow
+    Validate --> Embed
+    Embed --> Store
+
+    %% Classification flow (async)
+    Store -->|"trigger"| Queue1
+    Queue1 --> LLM
+    LLM --> Labels
+    Labels -->|"update"| Store
+
+    %% Correlation flow (async)
+    Store -->|"trigger"| Queue2
+    Queue2 --> Similarity
+    Similarity -->|"suggestions"| GraphStore
+    GraphStore --> Cluster
+
+    %% Visualization reads
+    Store --> ListView
+    Store --> GraphView
+    GraphStore --> GraphView
+    Cluster --> GraphView
+
+    %% Filter affects views
+    Filters -.->|"filter"| ListView
+    Filters -.->|"filter"| GraphView
+
+    %% User actions
+    ListView --> Bake
+    GraphView --> Accept
+    GraphView --> Reject
+    GraphView --> Refine
+
+    %% Feedback loop
+    Accept -->|"confirm edge"| GraphStore
+    Reject -->|"remove edge"| GraphStore
+    Refine -->|"update edge type"| GraphStore
+
+    %% Styling
+    classDef source fill:#F3F4F6,stroke:#6B7280,stroke-width:2px
+    classDef ingest fill:#DBEAFE,stroke:#2563EB,stroke-width:2px
+    classDef classify fill:#E9D5FF,stroke:#7C3AED,stroke-width:2px
+    classDef correlate fill:#D1FAE5,stroke:#059669,stroke-width:2px
+    classDef viz fill:#FEF3C7,stroke:#D97706,stroke-width:2px
+    classDef action fill:#FEE2E2,stroke:#DC2626,stroke-width:2px
+
+    class Manual,SlackMsg,SlackEmoji source
+    class Validate,Embed,Store ingest
+    class Queue1,LLM,Labels classify
+    class Queue2,Similarity,GraphStore,Cluster correlate
+    class ListView,GraphView,Filters viz
+    class Bake,Accept,Reject,Refine action

@@ -47,14 +47,16 @@ flowchart TB
     SPA <-->|REST/WebSocket| HITLGateway
 
     %% Orchestration flows
-    Coordinator -->|create_job()| Agents
+    Coordinator -->|create job| PhaseAgents
     Coordinator <-->|xread/xadd| Redis
     HITLGateway <-->|pub/sub| Redis
     GitGateway <-->|store| Git
 
     %% Agent flows
-    Agents -->|xadd progress| Redis
-    Agents <-->|stdio| MCPServers
+    PhaseAgents -->|xadd progress| Redis
+    QualityAgents -->|xadd progress| Redis
+    PhaseAgents <-->|stdio| MCPServers
+    QualityAgents <-->|stdio| MCPServers
 
     %% MCP to external
     RLM -->|Extended Thinking| Anthropic

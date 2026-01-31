@@ -22,7 +22,7 @@ flowchart TB
         JiraMCP["Jira MCP\n(issues)"]
     end
 
-    subgraph AgentContainers["Agent Containers (Ephemeral K8s Jobs)"]
+    subgraph Agents["Agent Containers (Ephemeral K8s Jobs)"]
         subgraph PhaseAgents["Phase Agents"]
             Discovery["Discovery\nAgent"]
             Design["Design\nAgent"]
@@ -38,7 +38,7 @@ flowchart TB
 
     subgraph Infrastructure["Infrastructure"]
         PostgreSQL[("PostgreSQL\n(State)")]
-        ChromaDB[("ChromaDB\n(Embeddings)")]
+        Elasticsearch[("Elasticsearch\n(Vector Search)")]
         Git[("Git Repos\n(Artifacts)")]
         Anthropic["Anthropic API\n(Claude Models)"]
     end
@@ -47,28 +47,30 @@ flowchart TB
     SPA <-->|REST/WebSocket| HITLGateway
 
     %% Orchestration flows
-    Coordinator -->|"create_job()"| Discovery
-    Coordinator <-->|"xread/xadd"| Redis
-    HITLGateway <-->|"pub/sub"| Redis
+    Coordinator -->|create job| PhaseAgents
+    Coordinator <-->|xread/xadd| Redis
+    HITLGateway <-->|pub/sub| Redis
     GitGateway <-->|store| Git
 
     %% Agent flows
-    Development -->|"xadd progress"| Redis
-    Test <-->|stdio| MCPServers
+    PhaseAgents -->|xadd progress| Redis
+    QualityAgents -->|xadd progress| Redis
+    PhaseAgents <-->|stdio| MCPServers
+    QualityAgents <-->|stdio| MCPServers
 
     %% MCP to external
-    RLM -->|"Extended Thinking"| Anthropic
-    RAG -->|"Prompt Caching"| Anthropic
-    RAG <-->|embeddings| ChromaDB
+    RLM -->|Extended Thinking| Anthropic
+    RAG -->|Prompt Caching| Anthropic
+    RAG <-->|kNN search| Elasticsearch
 
-    %% Styling - explicit dark text color for visibility in both themes
-    classDef ui fill:#E0F2FE,stroke:#0284c7,stroke-width:2px,color:#1a1a1a
-    classDef orchestration fill:#D0E8FF,stroke:#2563eb,stroke-width:2px,color:#1a1a1a
-    classDef eventbus fill:#FEE2E2,stroke:#dc2626,stroke-width:2px,color:#1a1a1a
-    classDef mcp fill:#FEF3C7,stroke:#d97706,stroke-width:2px,color:#1a1a1a
-    classDef agent fill:#E6F0FF,stroke:#2563eb,stroke-width:2px,color:#1a1a1a
-    classDef quality fill:#DCFCE7,stroke:#16a34a,stroke-width:2px,color:#1a1a1a
-    classDef infra fill:#F3E8FF,stroke:#9333ea,stroke-width:2px,color:#1a1a1a
+    %% Styling
+    classDef ui fill:#E0F2FE,stroke:#0284c7,stroke-width:2px
+    classDef orchestration fill:#D0E8FF,stroke:#2563eb,stroke-width:2px
+    classDef eventbus fill:#FEE2E2,stroke:#dc2626,stroke-width:2px
+    classDef mcp fill:#FEF3C7,stroke:#d97706,stroke-width:2px
+    classDef agent fill:#E6F0FF,stroke:#2563eb,stroke-width:2px
+    classDef quality fill:#DCFCE7,stroke:#16a34a,stroke-width:2px
+    classDef infra fill:#F3E8FF,stroke:#9333ea,stroke-width:2px
 
     class SPA ui
     class Coordinator,HITLGateway,GitGateway orchestration
@@ -76,4 +78,4 @@ flowchart TB
     class RLM,RAG,GitMCP,JiraMCP mcp
     class Discovery,Design,Development,Test agent
     class Security,Validator,Evaluator quality
-    class PostgreSQL,ChromaDB,Git,Anthropic infra
+    class PostgreSQL,Elasticsearch,Git,Anthropic infra

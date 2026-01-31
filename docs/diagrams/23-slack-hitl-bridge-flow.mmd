@@ -1,0 +1,76 @@
+%% File: docs/diagrams/23-slack-hitl-bridge-flow.mmd
+%% Description: Sequence diagram for Slack HITL Bridge gate notification and decision flow
+%% Updated: 2026-01-31
+
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#FEF3C7'}}}%%
+
+sequenceDiagram
+    autonumber
+    participant Agent as Agent Container
+    participant HITL as HITL Dispatcher
+    participant Redis as Redis Streams
+    participant Bridge as Slack HITL Bridge
+    participant Policy as Routing Policy
+    participant Slack as Slack Channel
+    participant Human as Human Reviewer
+    participant SPA as HITL Web UI
+
+    Note over Agent,SPA: Part A: Gate Notification (OUT)
+
+    Agent->>HITL: request_gate(gate_type, evidence)
+    HITL->>HITL: Create GateRequest
+    HITL->>HITL: Store in Redis hash
+    HITL->>Redis: XADD GATE_REQUESTED
+
+    Redis-->>Bridge: XREAD (consumer group)
+    Bridge->>Policy: lookup(gate_type, env, risk)
+    Policy-->>Bridge: channel_id, required_role
+
+    Bridge->>Bridge: Build Block Kit message
+    Note over Bridge: Evidence links only<br/>(no secrets in Slack)
+
+    Bridge->>Slack: chat.postMessage(blocks)
+    Note over Slack: [Approve] [Reject] buttons
+
+    Slack-->>Human: Notification in channel
+
+    Note over Agent,SPA: Part B: Decision Capture (IN)
+
+    Human->>Slack: Click [Approve]
+    Slack->>Bridge: action_payload (gate_id, user_id)
+
+    Bridge->>Bridge: RBAC.validate(user_id, required_role)
+
+    alt RBAC Valid
+        Bridge->>Redis: XADD GATE_APPROVED
+        Bridge->>Slack: chat.update (remove buttons)
+        Note over Slack: "Approved by @reviewer"
+
+        Redis-->>HITL: XREAD decision
+        HITL->>HITL: record_decision()
+        HITL->>HITL: Update GateRequest status
+        HITL->>Agent: Resume workflow
+    else RBAC Invalid
+        Bridge->>Slack: ephemeral message
+        Note over Slack: "You don't have permission"
+    end
+
+    Note over Agent,SPA: Part C: Idea Ingestion (IN)
+
+    Human->>Slack: Post message in #ideas channel
+    Slack->>Bridge: message event
+    Bridge->>Bridge: Extract content, author
+    Bridge->>HITL: POST /api/ideas (source=slack)
+    HITL-->>Bridge: idea_id
+    Bridge->>Slack: Add reaction (checkmark)
+
+    Note over Agent,SPA: Alternative: Emoji Trigger
+
+    Human->>Slack: React with lightbulb emoji
+    Slack->>Bridge: reaction_added event
+    Bridge->>Bridge: Fetch original message
+    Bridge->>HITL: POST /api/ideas (source=slack)
+    HITL-->>Bridge: idea_id
+    Bridge->>Slack: Thread reply with link
+
+    Note over SPA: SPA also shows gates<br/>for users who prefer browser

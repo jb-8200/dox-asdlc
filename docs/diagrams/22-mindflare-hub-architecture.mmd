@@ -1,0 +1,131 @@
+%% File: docs/diagrams/22-mindflare-hub-architecture.mmd
+%% Description: P08 Mindflare Hub system architecture showing all components
+%% Updated: 2026-01-31
+
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#E0E7FF'}}}%%
+
+flowchart TB
+    subgraph External["External Sources"]
+        Slack["Slack Workspace"]
+        User["User Browser"]
+    end
+
+    subgraph SlackBridge["Slack HITL Bridge (P08-F02)"]
+        direction TB
+        GateConsumer["Gate Consumer\n(Redis → Slack)"]
+        DecisionHandler["Decision Handler\n(Slack → Redis)"]
+        IdeaHandler["Idea Handler\n(Slack → API)"]
+        Policy["Routing Policy\n(gate_type → channel)"]
+        RBAC["RBAC Validator\n(slack_id → role)"]
+    end
+
+    subgraph Frontend["HITL UI (P08-F05, F06)"]
+        direction TB
+        MindflareHub["Mindflare Hub Page\n/mindflare"]
+        SnowflakeGraph["Snowflake Graph\n/mindflare/graph"]
+        IdeationStudio["Ideation Studio\n/studio/ideation"]
+        subgraph UIComponents["UI Components"]
+            IdeaCards["Idea Cards\n(Twitter-style)"]
+            FilterPanel["Filter Panel"]
+            GraphCanvas["Graph Canvas\n(WebGL/Canvas)"]
+            GraphControls["Graph Controls"]
+        end
+    end
+
+    subgraph Backend["Orchestrator API"]
+        direction TB
+        IdeasAPI["Ideas API\n/api/ideas"]
+        CorrelationAPI["Correlation API\n/api/ideas/correlations"]
+        GraphAPI["Graph API\n/api/ideas/graph"]
+        ClassifyAPI["Classification API\n/api/ideas/classify"]
+    end
+
+    subgraph Services["Backend Services"]
+        direction TB
+        IdeasService["Ideas Service\n(P08-F01)"]
+        ClassificationService["Classification Service\n(P08-F03)"]
+        CorrelationService["Correlation Service\n(P08-F04)"]
+    end
+
+    subgraph Workers["Async Workers"]
+        ClassificationWorker["Classification Worker\n(LLM-powered)"]
+        CorrelationWorker["Correlation Worker\n(Embedding similarity)"]
+    end
+
+    subgraph Storage["Data Storage"]
+        direction TB
+        ES["Elasticsearch\n(Ideas + Embeddings)"]
+        Redis["Redis\n(Queues + Graph)"]
+        Neo4j["Neo4j (Optional)\n(Graph relationships)"]
+    end
+
+    subgraph Existing["Existing HITL Infrastructure"]
+        HITLDispatcher["HITL Dispatcher\n(Gate management)"]
+        RedisStreams["Redis Streams\n(Events)"]
+    end
+
+    %% External connections
+    Slack <-->|"Socket Mode"| SlackBridge
+    User -->|"HTTP"| Frontend
+
+    %% Slack Bridge flows
+    GateConsumer -->|"read"| RedisStreams
+    GateConsumer -->|"lookup"| Policy
+    DecisionHandler -->|"validate"| RBAC
+    DecisionHandler -->|"publish"| RedisStreams
+    IdeaHandler -->|"create idea"| IdeasAPI
+
+    %% Slack to notifications
+    RedisStreams -->|"GATE_REQUESTED"| GateConsumer
+    DecisionHandler -->|"GATE_APPROVED\nGATE_REJECTED"| RedisStreams
+
+    %% Frontend to Backend
+    MindflareHub --> IdeasAPI
+    MindflareHub --> ClassifyAPI
+    SnowflakeGraph --> GraphAPI
+    SnowflakeGraph --> CorrelationAPI
+
+    %% Bake action
+    MindflareHub -->|"Bake in Studio"| IdeationStudio
+
+    %% API to Services
+    IdeasAPI --> IdeasService
+    ClassifyAPI --> ClassificationService
+    CorrelationAPI --> CorrelationService
+    GraphAPI --> CorrelationService
+
+    %% Services to Storage
+    IdeasService --> ES
+    ClassificationService --> Redis
+    CorrelationService --> ES
+    CorrelationService --> Redis
+    CorrelationService -.->|"optional"| Neo4j
+
+    %% Async processing
+    ClassificationService -->|"queue"| Redis
+    Redis -->|"consume"| ClassificationWorker
+    ClassificationWorker -->|"LLM call"| ClassificationService
+
+    CorrelationService -->|"queue"| Redis
+    Redis -->|"consume"| CorrelationWorker
+    CorrelationWorker -->|"embeddings"| ES
+
+    %% HITL integration
+    HITLDispatcher --> RedisStreams
+
+    %% Styling
+    classDef external fill:#F3F4F6,stroke:#6B7280,stroke-width:2px
+    classDef bridge fill:#FEF3C7,stroke:#D97706,stroke-width:2px
+    classDef frontend fill:#DBEAFE,stroke:#2563EB,stroke-width:2px
+    classDef backend fill:#D1FAE5,stroke:#059669,stroke-width:2px
+    classDef storage fill:#FEE2E2,stroke:#DC2626,stroke-width:2px
+    classDef worker fill:#E9D5FF,stroke:#7C3AED,stroke-width:2px
+    classDef existing fill:#F3F4F6,stroke:#6B7280,stroke-width:1px,stroke-dasharray: 5 5
+
+    class Slack,User external
+    class GateConsumer,DecisionHandler,IdeaHandler,Policy,RBAC bridge
+    class MindflareHub,SnowflakeGraph,IdeationStudio,IdeaCards,FilterPanel,GraphCanvas,GraphControls frontend
+    class IdeasAPI,CorrelationAPI,GraphAPI,ClassifyAPI,IdeasService,ClassificationService,CorrelationService backend
+    class ES,Redis,Neo4j storage
+    class ClassificationWorker,CorrelationWorker worker
+    class HITLDispatcher,RedisStreams existing
