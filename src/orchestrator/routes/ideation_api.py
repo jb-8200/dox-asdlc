@@ -5,6 +5,9 @@ This module provides API endpoints for the PRD Ideation Studio (P05-F11):
 - POST /api/studio/ideation/submit-prd - Submit for PRD generation
 - GET /api/studio/ideation/{sessionId}/maturity - Get session maturity
 - POST /api/studio/ideation/{sessionId}/draft - Save session draft
+- GET /api/studio/ideation/sessions - List all sessions for a user
+- GET /api/studio/ideation/sessions/{session_id} - Load a specific session
+- PATCH /api/studio/ideation/sessions/{session_id} - Update session details
 """
 
 from __future__ import annotations
@@ -13,7 +16,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -84,6 +87,7 @@ class IdeationChatRequest(BaseModel):
     sessionId: str
     message: str
     currentMaturity: float
+    projectName: str | None = None
     model: str | None = None  # sonnet, opus, haiku
     rlmEnabled: bool | None = None
 
@@ -96,6 +100,7 @@ class IdeationChatResponse(BaseModel):
     message: IdeationMessage
     maturityUpdate: MaturityState
     extractedRequirements: list[Requirement]
+    projectName: str | None = None
     suggestedFollowups: list[str]
 
     model_config = {"populate_by_name": True}
@@ -165,6 +170,7 @@ class SaveDraftRequest(BaseModel):
     messages: list[IdeationMessage]
     maturityState: MaturityState
     extractedRequirements: list[Requirement]
+    projectName: str | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -179,26 +185,110 @@ class SaveDraftResponse(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class SessionSummary(BaseModel):
+    """Summary of an ideation session."""
+
+    id: str
+    projectName: str
+    status: str
+    createdAt: str
+    updatedAt: str
+    messageCount: int = 0
+    maturityScore: float = 0.0
+
+    model_config = {"populate_by_name": True}
+
+
+class SessionListResponse(BaseModel):
+    """Response for session list."""
+
+    sessions: list[SessionSummary]
+    total: int
+    limit: int
+    offset: int
+
+
+class SessionDetailResponse(BaseModel):
+    """Response for session detail."""
+
+    id: str
+    projectName: str
+    status: str
+    messages: list[IdeationMessage]
+    maturityState: MaturityState | None
+    requirements: list[Requirement]
+    createdAt: str
+    updatedAt: str
+
+    model_config = {"populate_by_name": True}
+
+
+class UpdateSessionRequest(BaseModel):
+    """Request to update session details."""
+
+    projectName: str | None = None
+    status: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
 # =============================================================================
 # Service Interface
 # =============================================================================
 
 
+def _get_service() -> Any:
+    """Get the ideation service instance.
+
+    Returns:
+        IdeationService: Service instance.
+    """
+    return get_ideation_service()
+
+
 class IdeationService:
     """Service interface for ideation operations.
 
-    Note: Current implementation uses mock responses. The actual service
-    implementation will integrate with IdeationAgent, PRDGenerator, and
-    UserStoryExtractor from src/workers/agents/ideation/.
-
-    TODO: Implement real service layer connecting to worker agents.
+    Delegates to IdeationServiceImpl when configured LLM is available,
+    falls back to NotImplementedError which triggers mock responses.
 
     The service provides:
     - Chat processing with maturity tracking
     - PRD document generation
     - Session maturity retrieval
     - Draft persistence
+    - Session listing and retrieval
+    - Session update (rename, status change)
     """
+
+    def __init__(self) -> None:
+        """Initialize the ideation service."""
+        self._impl: Any = None
+        self._use_real_impl = True
+
+    def _get_impl(self) -> Any:
+        """Get the real implementation if available.
+
+        Returns:
+            IdeationServiceImpl: The real implementation.
+
+        Raises:
+            NotImplementedError: If real implementation not available.
+        """
+        if not self._use_real_impl:
+            raise NotImplementedError("Using mock implementation")
+
+        if self._impl is None:
+            try:
+                from src.orchestrator.services.ideation_service import (
+                    get_ideation_service_impl,
+                )
+                self._impl = get_ideation_service_impl()
+            except ImportError:
+                self._use_real_impl = False
+                raise NotImplementedError("Real implementation not available")
+
+        return self._impl
 
     async def process_chat(
         self,
@@ -214,8 +304,8 @@ class IdeationService:
         Returns:
             IdeationChatResponse: Response with maturity update.
         """
-        # This will be implemented to use IdeationAgent
-        raise NotImplementedError("IdeationService.process_chat not implemented")
+        impl = self._get_impl()
+        return await impl.process_chat(request, model)
 
     async def submit_for_prd(
         self,
@@ -229,8 +319,8 @@ class IdeationService:
         Returns:
             SubmitPRDResponse: Response with PRD draft and user stories.
         """
-        # This will be implemented to use PRDGenerator and UserStoryExtractor
-        raise NotImplementedError("IdeationService.submit_for_prd not implemented")
+        impl = self._get_impl()
+        return await impl.submit_for_prd(request)
 
     async def get_session_maturity(
         self,
@@ -244,8 +334,8 @@ class IdeationService:
         Returns:
             MaturityState | None: Current maturity or None if not found.
         """
-        # This will be implemented to retrieve from session storage
-        raise NotImplementedError("IdeationService.get_session_maturity not implemented")
+        impl = self._get_impl()
+        return await impl.get_session_maturity(session_id)
 
     async def save_draft(
         self,
@@ -261,8 +351,58 @@ class IdeationService:
         Returns:
             SaveDraftResponse: Response confirming save.
         """
-        # This will be implemented to persist to session storage
-        raise NotImplementedError("IdeationService.save_draft not implemented")
+        impl = self._get_impl()
+        return await impl.save_draft(session_id, request)
+
+    async def list_sessions(
+        self,
+        user_id: str = "anonymous",
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list, int]:
+        """List sessions for a user.
+
+        Args:
+            user_id: User identifier.
+            limit: Maximum number of sessions to return.
+            offset: Number of sessions to skip.
+
+        Returns:
+            tuple[list, int]: List of session summaries and total count.
+        """
+        impl = self._get_impl()
+        return await impl.list_sessions(user_id, limit, offset)
+
+    async def get_session(self, session_id: str) -> dict | None:
+        """Get full session details.
+
+        Args:
+            session_id: Session identifier.
+
+        Returns:
+            dict | None: Session details or None if not found.
+        """
+        impl = self._get_impl()
+        return await impl.get_session(session_id)
+
+    async def update_session(
+        self,
+        session_id: str,
+        project_name: str | None,
+        status: str | None,
+    ) -> bool | None:
+        """Update session details.
+
+        Args:
+            session_id: Session identifier.
+            project_name: New project name (optional).
+            status: New status (optional).
+
+        Returns:
+            bool | None: True if updated, None if session not found.
+        """
+        impl = self._get_impl()
+        return await impl.update_session(session_id, project_name, status)
 
 
 # Global service instance (will be replaced with DI)
@@ -284,6 +424,172 @@ def get_ideation_service() -> IdeationService:
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
+
+@router.get("/sessions", response_model=SessionListResponse)
+async def list_sessions(
+    user_id: str = Query("anonymous", description="User ID to filter sessions"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum sessions to return"),
+    offset: int = Query(0, ge=0, description="Number of sessions to skip"),
+) -> SessionListResponse:
+    """List saved ideation sessions.
+
+    Args:
+        user_id: User identifier to filter sessions.
+        limit: Maximum number of sessions to return.
+        offset: Number of sessions to skip for pagination.
+
+    Returns:
+        SessionListResponse: List of session summaries with pagination info.
+
+    Raises:
+        HTTPException: 500 on service error.
+    """
+    try:
+        sessions, total = await _get_service().list_sessions(user_id, limit, offset)
+        return SessionListResponse(
+            sessions=[
+                SessionSummary(
+                    id=s["id"],
+                    projectName=s["project_name"],
+                    status=s["status"],
+                    createdAt=s["created_at"],
+                    updatedAt=s["updated_at"],
+                    messageCount=s["message_count"],
+                    maturityScore=s["maturity_score"],
+                )
+                for s in sessions
+            ],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+    except NotImplementedError:
+        return SessionListResponse(sessions=[], total=0, limit=limit, offset=offset)
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
+async def get_session(
+    session_id: str = Path(..., description="Session ID"),
+) -> SessionDetailResponse:
+    """Get details of a specific session.
+
+    Args:
+        session_id: Session identifier.
+
+    Returns:
+        SessionDetailResponse: Full session details with messages and maturity.
+
+    Raises:
+        HTTPException: 404 if session not found.
+        HTTPException: 500 on service error.
+    """
+    try:
+        session = await _get_service().get_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Convert domain models to API models
+        messages = [
+            IdeationMessage(
+                id=m.id,
+                role=m.role.value,
+                content=m.content,
+                timestamp=m.timestamp.isoformat(),
+                maturityDelta=float(m.maturity_delta) if m.maturity_delta else None,
+                extractedRequirements=[],
+                suggestedFollowups=[],
+            )
+            for m in session["messages"]
+        ]
+
+        maturity_state = None
+        if session["maturity"]:
+            mat = session["maturity"]
+            maturity_state = MaturityState(
+                score=float(mat.score),
+                level=mat.level,
+                categories=[
+                    CategoryMaturity(
+                        id=c.id,
+                        name=c.name,
+                        score=float(c.score),
+                        requiredForSubmit=c.required_for_submit,
+                        sections=[],
+                    )
+                    for c in mat.categories
+                ],
+                canSubmit=mat.can_submit,
+                gaps=mat.gaps or [],
+            )
+
+        requirements = [
+            Requirement(
+                id=r.id,
+                description=r.description,
+                type=r.type.value,
+                priority=r.priority.value,
+                categoryId=r.category_id or "",
+                createdAt=r.created_at.isoformat(),
+            )
+            for r in session["requirements"]
+        ]
+
+        return SessionDetailResponse(
+            id=session["id"],
+            projectName=session["project_name"],
+            status=session["status"],
+            messages=messages,
+            maturityState=maturity_state,
+            requirements=requirements,
+            createdAt=session["created_at"],
+            updatedAt=session["updated_at"],
+        )
+    except HTTPException:
+        raise
+    except NotImplementedError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    except Exception as e:
+        logger.error(f"Failed to get session: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.patch("/sessions/{session_id}")
+async def update_session(
+    session_id: str = Path(..., description="Session ID"),
+    request: UpdateSessionRequest = ...,
+) -> dict:
+    """Update session details (rename, change status).
+
+    Args:
+        session_id: Session identifier.
+        request: Update request with optional projectName and status.
+
+    Returns:
+        dict: Success response with session ID.
+
+    Raises:
+        HTTPException: 404 if session not found.
+        HTTPException: 501 if not implemented.
+        HTTPException: 500 on service error.
+    """
+    try:
+        result = await _get_service().update_session(
+            session_id, request.projectName, request.status
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"success": True, "sessionId": session_id}
+    except HTTPException:
+        raise
+    except NotImplementedError:
+        raise HTTPException(status_code=501, detail="Not implemented")
+    except Exception as e:
+        logger.error(f"Failed to update session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/chat", response_model=IdeationChatResponse)
