@@ -251,3 +251,95 @@ class TestDevelopmentConfigWithOverrides:
         modified = original.with_overrides(artifact_base_path="/new/path")
 
         assert modified.artifact_base_path == Path("/new/path")
+
+
+class TestDevelopmentConfigFromLLMConfig:
+    """Tests for DevelopmentConfig integration with LLM admin configuration."""
+
+    @pytest.mark.asyncio
+    async def test_from_llm_config_uses_agent_configs(self) -> None:
+        """Test that from_llm_config reads from LLMConfigService."""
+        from unittest.mock import AsyncMock, MagicMock
+        from src.orchestrator.api.models.llm_config import (
+            AgentLLMConfig,
+            AgentRole,
+            AgentSettings,
+            LLMProvider,
+        )
+
+        # Create mock config service with agent configs
+        mock_config_service = MagicMock()
+
+        # Configure mock to return agent configs
+        async def get_agent_config(role):
+            configs = {
+                AgentRole.UTEST: AgentLLMConfig(
+                    role=AgentRole.UTEST,
+                    provider=LLMProvider.ANTHROPIC,
+                    model="claude-sonnet-custom",
+                    api_key_id="key-1",
+                    settings=AgentSettings(temperature=0.3, max_tokens=12000),
+                ),
+                AgentRole.CODING: AgentLLMConfig(
+                    role=AgentRole.CODING,
+                    provider=LLMProvider.ANTHROPIC,
+                    model="claude-sonnet-coding",
+                    api_key_id="key-1",
+                    settings=AgentSettings(temperature=0.2, max_tokens=16384),
+                ),
+                AgentRole.DEBUGGER: AgentLLMConfig(
+                    role=AgentRole.DEBUGGER,
+                    provider=LLMProvider.ANTHROPIC,
+                    model="claude-sonnet-debug",
+                    api_key_id="key-1",
+                    settings=AgentSettings(temperature=0.1, max_tokens=20000),
+                ),
+                AgentRole.REVIEWER: AgentLLMConfig(
+                    role=AgentRole.REVIEWER,
+                    provider=LLMProvider.ANTHROPIC,
+                    model="claude-opus-review",
+                    api_key_id="key-1",
+                    settings=AgentSettings(temperature=0.0, max_tokens=32000),
+                ),
+            }
+            return configs.get(role)
+
+        mock_config_service.get_agent_config = AsyncMock(side_effect=get_agent_config)
+
+        config = await DevelopmentConfig.from_llm_config(mock_config_service)
+
+        assert config.utest_model == "claude-sonnet-custom"
+        assert config.coding_model == "claude-sonnet-coding"
+        assert config.debugger_model == "claude-sonnet-debug"
+        assert config.reviewer_model == "claude-opus-review"
+
+    @pytest.mark.asyncio
+    async def test_from_llm_config_uses_defaults_on_error(self) -> None:
+        """Test that from_llm_config falls back to defaults on error."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_config_service = MagicMock()
+        mock_config_service.get_agent_config = AsyncMock(side_effect=Exception("Service unavailable"))
+
+        config = await DevelopmentConfig.from_llm_config(mock_config_service)
+
+        # Should fall back to defaults
+        assert config.utest_model == "claude-sonnet-4-20250514"
+        assert config.reviewer_model == "claude-opus-4-20250514"
+
+    @pytest.mark.asyncio
+    async def test_from_llm_config_uses_default_service_when_none_provided(self) -> None:
+        """Test that from_llm_config uses global service when none provided."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        mock_service = MagicMock()
+        mock_service.get_agent_config = AsyncMock(return_value=None)
+
+        with patch(
+            "src.orchestrator.services.llm_config_service.get_llm_config_service",
+            return_value=mock_service,
+        ):
+            config = await DevelopmentConfig.from_llm_config()
+
+        # Should have used the global service (which returns None, so defaults)
+        assert config.utest_model == "claude-sonnet-4-20250514"

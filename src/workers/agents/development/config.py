@@ -6,10 +6,16 @@ environment variable overrides for UTest, Coding, Debugger, and Reviewer agents.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.orchestrator.services.llm_config_service import LLMConfigService
+
+
 
 
 class ConfigValidationError(Exception):
@@ -150,6 +156,62 @@ class DevelopmentConfig:
             test_timeout_seconds=get_int("DEVELOPMENT_TEST_TIMEOUT", _DEFAULT_TEST_TIMEOUT_SECONDS),
             coverage_threshold=get_float("DEVELOPMENT_COVERAGE_THRESHOLD", _DEFAULT_COVERAGE_THRESHOLD),
         )
+
+    @classmethod
+    async def from_llm_config(
+        cls,
+        config_service: "LLMConfigService | None" = None,
+    ) -> DevelopmentConfig:
+        """Create configuration from LLM admin configuration service.
+
+        Reads model settings from the LLMConfigService for each agent role,
+        falling back to defaults if the service is unavailable or returns None.
+
+        Args:
+            config_service: Optional LLMConfigService instance. If not provided,
+                will use the global singleton.
+
+        Returns:
+            DevelopmentConfig: Configuration from LLM config service.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Get the config service
+        if config_service is None:
+            try:
+                from src.orchestrator.services.llm_config_service import (
+                    get_llm_config_service,
+                )
+                config_service = get_llm_config_service()
+            except Exception as e:
+                logger.warning(f"Could not get LLM config service: {e}")
+                return cls()  # Return defaults
+
+        # Import AgentRole for lookups
+        from src.orchestrator.api.models.llm_config import AgentRole
+
+        # Initialize with defaults
+        kwargs: dict[str, Any] = {}
+
+        # Try to get each agent config
+        role_map = {
+            AgentRole.UTEST: "utest_model",
+            AgentRole.CODING: "coding_model",
+            AgentRole.DEBUGGER: "debugger_model",
+            AgentRole.REVIEWER: "reviewer_model",
+        }
+
+        for role, field_name in role_map.items():
+            try:
+                agent_config = await config_service.get_agent_config(role)
+                if agent_config and agent_config.model:
+                    kwargs[field_name] = agent_config.model
+            except Exception as e:
+                logger.warning(f"Could not get config for {role.value}: {e}")
+                # Continue with defaults for this role
+
+        return cls(**kwargs)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary.

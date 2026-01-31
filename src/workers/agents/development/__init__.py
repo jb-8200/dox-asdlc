@@ -313,3 +313,19 @@ def create_tdd_orchestrator(
         config=config or DevelopmentConfig(),
         hitl_dispatcher=hitl_dispatcher,
     )
+
+
+# Async factory functions using LLMClientFactory
+from src.workers.agents.development.agent_factory import (
+    create_utest_agent as create_utest_agent_from_factory,
+    create_coding_agent as create_coding_agent_from_factory,
+    create_debugger_agent as create_debugger_agent_from_factory,
+    create_reviewer_agent as create_reviewer_agent_from_factory,
+)
+
+__all__.extend([
+    "create_utest_agent_from_factory",
+    "create_coding_agent_from_factory",
+    "create_debugger_agent_from_factory",
+    "create_reviewer_agent_from_factory",
+])
