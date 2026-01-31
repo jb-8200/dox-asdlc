@@ -114,6 +114,16 @@ export function SnowflakeGraph({ className }: SnowflakeGraphProps) {
     });
   }, [edges, filteredNodes, filters.correlationTypes]);
 
+  // Prepare graph data for the force graph component
+  // NOTE: This must be before any early returns to comply with React hooks rules
+  const graphData = useMemo(
+    () => ({
+      nodes: filteredNodes as ForceGraphNode[],
+      links: filteredEdges as unknown as ForceGraphLink[],
+    }),
+    [filteredNodes, filteredEdges]
+  );
+
   // Node rendering
   const nodeCanvasObject = useCallback(
     (node: ForceGraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -242,15 +252,6 @@ export function SnowflakeGraph({ className }: SnowflakeGraphProps) {
       </div>
     );
   }
-
-  // Prepare graph data for the force graph component
-  const graphData = useMemo(
-    () => ({
-      nodes: filteredNodes as ForceGraphNode[],
-      links: filteredEdges as unknown as ForceGraphLink[],
-    }),
-    [filteredNodes, filteredEdges]
-  );
 
   return (
     <div className={className} data-testid="snowflake-graph">
