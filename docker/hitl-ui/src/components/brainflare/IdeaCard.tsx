@@ -22,6 +22,8 @@ export interface IdeaCardProps {
   isSelected?: boolean;
   /** Click handler for selection */
   onClick?: () => void;
+  /** Double-click handler for edit */
+  onDoubleClick?: () => void;
   /** Classification result with confidence and reasoning */
   classificationResult?: ClassificationResult | null;
   /** Whether classification is currently in progress */
@@ -55,6 +57,7 @@ export function IdeaCard({
   idea,
   isSelected,
   onClick,
+  onDoubleClick,
   classificationResult,
   isClassifying = false,
   onReclassify,
@@ -68,6 +71,7 @@ export function IdeaCard({
     [idea.id, onReclassify]
   );
 
+  // Keyboard handler for selection (Enter/Space selects; double-click handles edit)
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -92,6 +96,7 @@ export function IdeaCard({
           : 'border-border-primary hover:border-gray-400 dark:hover:border-gray-500 bg-bg-primary'
       )}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}

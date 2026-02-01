@@ -114,6 +114,7 @@ export function IdeasListPanel() {
               idea={idea}
               isSelected={selectedIdea?.id === idea.id}
               onClick={() => handleSelectIdea(idea.id)}
+              onDoubleClick={() => openForm(idea)}
             />
           ))
         )}
