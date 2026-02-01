@@ -489,7 +489,34 @@ class TestRejectionModal:
     async def test_open_rejection_modal(
         self, handler: DecisionHandler, mock_slack: MagicMock
     ):
-        """Opens rejection modal with correct structure."""
+        """Opens rejection modal with correct structure and JSON metadata."""
+        import json
+
+        await handler.open_rejection_modal(
+            trigger_id="trigger-123",
+            request_id="req-001",
+            channel_id="C-CODE",
+        )
+
+        mock_slack.views_open.assert_called_once()
+        call_kwargs = mock_slack.views_open.call_args.kwargs
+        view = call_kwargs["view"]
+
+        assert view["type"] == "modal"
+        assert "rejection_modal_req-001" in view["callback_id"]
+
+        # Verify JSON metadata format
+        metadata = json.loads(view["private_metadata"])
+        assert metadata["request_id"] == "req-001"
+        assert metadata["channel_id"] == "C-CODE"
+
+    @pytest.mark.asyncio
+    async def test_open_rejection_modal_empty_channel(
+        self, handler: DecisionHandler, mock_slack: MagicMock
+    ):
+        """Opens rejection modal with empty channel_id."""
+        import json
+
         await handler.open_rejection_modal(
             trigger_id="trigger-123",
             request_id="req-001",
@@ -499,9 +526,10 @@ class TestRejectionModal:
         call_kwargs = mock_slack.views_open.call_args.kwargs
         view = call_kwargs["view"]
 
-        assert view["type"] == "modal"
-        assert "rejection_modal_req-001" in view["callback_id"]
-        assert view["private_metadata"] == "req-001"
+        # Verify JSON metadata with empty channel
+        metadata = json.loads(view["private_metadata"])
+        assert metadata["request_id"] == "req-001"
+        assert metadata["channel_id"] == ""
 
     @pytest.mark.asyncio
     async def test_handle_rejection_modal_submit(

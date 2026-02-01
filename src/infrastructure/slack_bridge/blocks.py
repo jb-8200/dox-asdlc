@@ -182,27 +182,37 @@ def build_rejected_blocks(
     return updated_blocks
 
 
-def build_rejection_modal(request_id: str) -> dict:
+def build_rejection_modal(request_id: str, channel_id: str = "") -> dict:
     """Build a modal for capturing rejection reason.
 
     Creates a Slack modal with a text input for the user to
     explain why they are rejecting the gate.
 
     Args:
-        request_id: The gate request ID (stored in private_metadata).
+        request_id: The gate request ID.
+        channel_id: Channel ID where the rejection was initiated (for RBAC lookup).
 
     Returns:
         Modal view payload dictionary.
 
+    Note:
+        The private_metadata stores JSON with both request_id and channel_id
+        to enable correct channel config lookup during modal submission.
+
     Example:
         ```python
-        modal = build_rejection_modal("req-123")
+        modal = build_rejection_modal("req-123", "C-CODE")
         await slack_client.views_open(
             trigger_id=body["trigger_id"],
             view=modal,
         )
         ```
     """
+    import json
+
+    # Store both request_id and channel_id for RBAC lookup on submission
+    metadata = json.dumps({"request_id": request_id, "channel_id": channel_id})
+
     return {
         "type": "modal",
         "callback_id": f"rejection_modal_{request_id}",
@@ -229,5 +239,5 @@ def build_rejection_modal(request_id: str) -> dict:
                 },
             },
         ],
-        "private_metadata": request_id,
+        "private_metadata": metadata,
     }

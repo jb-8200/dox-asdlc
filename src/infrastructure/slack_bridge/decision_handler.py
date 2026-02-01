@@ -465,14 +465,16 @@ class DecisionHandler:
         self,
         trigger_id: str,
         request_id: str,
+        channel_id: str = "",
     ) -> None:
         """Open the rejection reason modal.
 
         Args:
             trigger_id: Slack trigger ID from the action.
             request_id: The gate request ID.
+            channel_id: Channel ID where the rejection was initiated (for RBAC lookup).
         """
-        modal = build_rejection_modal(request_id)
+        modal = build_rejection_modal(request_id, channel_id)
 
         try:
             await self.slack.views_open(

@@ -214,7 +214,7 @@ class TestRejectGateHandler:
     async def test_reject_gate_opens_modal(
         self, config: SlackBridgeConfig, mock_redis: AsyncMock
     ):
-        """Reject gate action opens rejection modal."""
+        """Reject gate action opens rejection modal with channel_id."""
         from src.infrastructure.slack_bridge.bridge import SlackBridge
 
         bridge = SlackBridge(config=config, redis_client=mock_redis)
@@ -223,6 +223,7 @@ class TestRejectGateHandler:
 
         body = {
             "user": {"id": "U001"},
+            "channel": {"id": "C-CODE"},
             "trigger_id": "trigger-123",
             "actions": [{"value": "req-001"}],
         }
@@ -236,6 +237,7 @@ class TestRejectGateHandler:
         bridge.decision_handler.open_rejection_modal.assert_called_once_with(
             trigger_id="trigger-123",
             request_id="req-001",
+            channel_id="C-CODE",
         )
 
 
@@ -267,7 +269,9 @@ class TestRejectionModalHandler:
     async def test_modal_submit_calls_handle_rejection(
         self, config: SlackBridgeConfig, mock_redis: AsyncMock
     ):
-        """Modal submission calls handle_rejection_modal_submit."""
+        """Modal submission calls handle_rejection_modal_submit with correct channel config."""
+        import json
+
         from src.infrastructure.slack_bridge.bridge import SlackBridge
 
         bridge = SlackBridge(config=config, redis_client=mock_redis)
@@ -277,11 +281,14 @@ class TestRejectionModalHandler:
         )
         bridge.decision_handler.update_message_after_rejection = AsyncMock()
 
+        # JSON metadata format with channel_id
+        metadata = json.dumps({"request_id": "req-001", "channel_id": "C-CODE"})
+
         body = {
             "user": {"id": "U001"},
             "view": {
                 "callback_id": "rejection_modal_req-001",
-                "private_metadata": "req-001",
+                "private_metadata": metadata,
                 "state": {
                     "values": {
                         "reason_block": {"reason_input": {"value": "Test reason"}}
@@ -299,6 +306,45 @@ class TestRejectionModalHandler:
         await bridge._handle_rejection_modal(ack, body, client)
 
         ack.assert_called_once()
+        bridge.decision_handler.handle_rejection_modal_submit.assert_called_once()
+        # Verify correct channel config was used (C-CODE maps to hitl_4_code)
+        call_kwargs = bridge.decision_handler.handle_rejection_modal_submit.call_args.kwargs
+        assert call_kwargs["channel_config"].channel_id == "C-CODE"
+
+    @pytest.mark.asyncio
+    async def test_modal_submit_backwards_compatible(
+        self, config: SlackBridgeConfig, mock_redis: AsyncMock
+    ):
+        """Modal submission handles old plain string metadata format."""
+        from src.infrastructure.slack_bridge.bridge import SlackBridge
+
+        bridge = SlackBridge(config=config, redis_client=mock_redis)
+
+        bridge.decision_handler.handle_rejection_modal_submit = AsyncMock(
+            return_value={"success": True}
+        )
+
+        # Old format - plain request_id string
+        body = {
+            "user": {"id": "U001"},
+            "view": {
+                "callback_id": "rejection_modal_req-001",
+                "private_metadata": "req-001",  # Old format
+                "state": {
+                    "values": {
+                        "reason_block": {"reason_input": {"value": "Test reason"}}
+                    }
+                },
+            },
+        }
+
+        ack = AsyncMock()
+        client = MagicMock()
+
+        await bridge._handle_rejection_modal(ack, body, client)
+
+        ack.assert_called_once()
+        # Should still work with default channel config
         bridge.decision_handler.handle_rejection_modal_submit.assert_called_once()
 
 
@@ -447,13 +493,14 @@ class TestIdeaNewCommandHandler:
 
     @pytest.mark.asyncio
     async def test_idea_new_command_no_handler_returns_error(
-        self, config: SlackBridgeConfig, mock_redis: AsyncMock
+        self, config: SlackBridgeConfig
     ):
         """Missing idea handler returns configuration error."""
         from src.infrastructure.slack_bridge.bridge import SlackBridge
 
-        bridge = SlackBridge(config=config, redis_client=mock_redis)
-        # idea_handler is None by default
+        # Create bridge without redis_client - idea_handler remains None
+        bridge = SlackBridge(config=config, redis_client=None)
+        assert bridge.idea_handler is None
 
         command = {
             "user_id": "U001",
@@ -500,6 +547,87 @@ class TestIdeaNewCommandHandler:
         ack.assert_called_once()
         call_kwargs = client.chat_postEphemeral.call_args.kwargs
         assert "failed" in call_kwargs.get("text", "").lower()
+
+
+class TestRedisIdeasService:
+    """Tests for RedisIdeasService adapter."""
+
+    @pytest.fixture
+    def mock_redis(self) -> AsyncMock:
+        """Mock Redis client."""
+        mock = AsyncMock()
+        mock.xadd = AsyncMock(return_value="1234567890-0")
+        return mock
+
+    @pytest.mark.asyncio
+    async def test_create_idea_writes_to_redis_stream(self, mock_redis: AsyncMock):
+        """Create idea writes event to Redis Stream."""
+        from src.infrastructure.slack_bridge.bridge import RedisIdeasService
+        from src.orchestrator.api.models.idea import CreateIdeaRequest
+
+        service = RedisIdeasService(mock_redis)
+
+        request = CreateIdeaRequest(
+            content="Test idea content",
+            author_id="U001",
+            author_name="Test User",
+            labels=["source_ref:slack:command:C-IDEAS:U001"],
+        )
+
+        result = await service.create_idea(request)
+
+        # Verify Redis xadd was called
+        mock_redis.xadd.assert_called_once()
+        call_args = mock_redis.xadd.call_args
+        assert call_args[0][0] == "ideas_stream"
+
+        # Verify event data
+        event_data = call_args[0][1]
+        assert event_data["content"] == "Test idea content"
+        assert event_data["author_id"] == "U001"
+        assert event_data["author_name"] == "Test User"
+        assert event_data["status"] == "active"
+
+    @pytest.mark.asyncio
+    async def test_create_idea_returns_idea_object(self, mock_redis: AsyncMock):
+        """Create idea returns properly formed Idea object."""
+        from src.infrastructure.slack_bridge.bridge import RedisIdeasService
+        from src.orchestrator.api.models.idea import CreateIdeaRequest, IdeaStatus
+
+        service = RedisIdeasService(mock_redis)
+
+        request = CreateIdeaRequest(
+            content="My great idea",
+            author_id="U001",
+            author_name="Test User",
+        )
+
+        result = await service.create_idea(request)
+
+        assert result.content == "My great idea"
+        assert result.author_id == "U001"
+        assert result.author_name == "Test User"
+        assert result.status == IdeaStatus.ACTIVE
+        assert result.word_count == 3  # "My great idea" = 3 words
+        assert result.id is not None
+
+    @pytest.mark.asyncio
+    async def test_create_idea_calculates_word_count(self, mock_redis: AsyncMock):
+        """Create idea correctly calculates word count."""
+        from src.infrastructure.slack_bridge.bridge import RedisIdeasService
+        from src.orchestrator.api.models.idea import CreateIdeaRequest
+
+        service = RedisIdeasService(mock_redis)
+
+        request = CreateIdeaRequest(
+            content="One two three four five six seven",
+            author_id="U001",
+            author_name="Test User",
+        )
+
+        result = await service.create_idea(request)
+
+        assert result.word_count == 7
 
 
 class TestGracefulShutdown:

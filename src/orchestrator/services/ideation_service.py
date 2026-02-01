@@ -783,14 +783,6 @@ class IdeationServiceImpl:
 
             await maturity_repo.save(domain_maturity)
 
-            # Update session project name if provided
-            if hasattr(request, "projectName") and request.projectName:
-                session_repo = self._get_session_repository(db_session)
-                session = await session_repo.get_by_id(session_id)
-                if session:
-                    session.project_name = request.projectName
-                    session.updated_at = datetime.now(UTC)
-                    await session_repo.update(session)
 
 
 # Global service instance

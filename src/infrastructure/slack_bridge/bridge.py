@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import signal
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -30,8 +31,79 @@ from src.infrastructure.slack_bridge.decision_handler import (
 from src.infrastructure.slack_bridge.gate_consumer import GateConsumer
 from src.infrastructure.slack_bridge.idea_handler import IdeaHandler
 from src.infrastructure.slack_bridge.policy import RoutingPolicy
+from src.orchestrator.api.models.idea import (
+    CreateIdeaRequest,
+    Idea,
+    IdeaClassification,
+    IdeaStatus,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class RedisIdeasService:
+    """Lightweight adapter that writes ideas to Redis Streams.
+
+    This keeps the Slack Bridge stateless by writing ideas to Redis
+    for downstream processing, rather than requiring a full IdeasService.
+    """
+
+    # Redis Stream name for ideas
+    IDEAS_STREAM = "ideas_stream"
+
+    def __init__(self, redis_client: redis.Redis) -> None:
+        """Initialize the Redis-backed ideas service.
+
+        Args:
+            redis_client: Redis client instance.
+        """
+        self.redis = redis_client
+
+    async def create_idea(self, request: CreateIdeaRequest) -> Idea:
+        """Create an idea by writing to Redis Streams.
+
+        Args:
+            request: The idea creation request.
+
+        Returns:
+            The created Idea object.
+        """
+        idea_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        word_count = len(request.content.split())
+
+        # Build event data for Redis Stream
+        event_data = {
+            "id": idea_id,
+            "content": request.content,
+            "author_id": request.author_id,
+            "author_name": request.author_name,
+            "status": IdeaStatus.ACTIVE.value,
+            "classification": request.classification.value,
+            "labels": json.dumps(request.labels),
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+            "word_count": str(word_count),
+        }
+
+        # Write to Redis Stream
+        await self.redis.xadd(self.IDEAS_STREAM, event_data)
+
+        logger.info(f"Published idea {idea_id} to Redis Stream {self.IDEAS_STREAM}")
+
+        # Return the created Idea
+        return Idea(
+            id=idea_id,
+            content=request.content,
+            author_id=request.author_id,
+            author_name=request.author_name,
+            status=IdeaStatus.ACTIVE,
+            classification=request.classification,
+            labels=request.labels,
+            created_at=now,
+            updated_at=now,
+            word_count=word_count,
+        )
 
 # Version for startup logging
 __version__ = "1.0.0"
@@ -176,7 +248,7 @@ class SlackBridge:
         self._register_handlers()
 
     def _setup_handlers(self, redis_client: redis.Redis) -> None:
-        """Set up decision handler and gate consumer.
+        """Set up decision handler, gate consumer, and idea handler.
 
         Args:
             redis_client: Redis client instance.
@@ -189,6 +261,14 @@ class SlackBridge:
 
         self.gate_consumer = GateConsumer(
             redis_client=redis_client,
+            slack_client=self.app.client,
+            config=self.config,
+        )
+
+        # Initialize idea handler with Redis-backed service
+        # This keeps the bridge stateless - ideas are written to Redis for processing
+        self.idea_handler = IdeaHandler(
+            ideas_service=RedisIdeasService(redis_client),
             slack_client=self.app.client,
             config=self.config,
         )
@@ -321,6 +401,7 @@ class SlackBridge:
 
         trigger_id = body.get("trigger_id", "")
         request_id = body.get("actions", [{}])[0].get("value", "")
+        channel_id = body.get("channel", {}).get("id", "")
 
         if self.decision_handler is None:
             logger.error("Decision handler not initialized")
@@ -329,6 +410,7 @@ class SlackBridge:
         await self.decision_handler.open_rejection_modal(
             trigger_id=trigger_id,
             request_id=request_id,
+            channel_id=channel_id,
         )
 
     async def _handle_rejection_modal(
@@ -349,12 +431,21 @@ class SlackBridge:
         user_id = body.get("user", {}).get("id", "")
         view = body.get("view", {})
 
-        # Get request_id from private_metadata
-        request_id = view.get("private_metadata", "")
+        # Parse JSON metadata (with backwards compatibility for old format)
+        raw_metadata = view.get("private_metadata", "")
+        try:
+            metadata = json.loads(raw_metadata)
+            request_id = metadata.get("request_id", "")
+            channel_id = metadata.get("channel_id", "")
+        except json.JSONDecodeError:
+            # Old format - plain request_id string
+            request_id = raw_metadata
+            channel_id = ""
 
-        # Find channel config based on the request
-        # For now, we'll use a default config from routing policy
-        channel_config = self._get_default_channel_config()
+        # Look up correct channel config for RBAC
+        channel_config = self._get_channel_config_for_channel(channel_id) if channel_id else None
+        if not channel_config:
+            channel_config = self._get_default_channel_config()
 
         if not channel_config:
             logger.error("No channel config available for rejection")
@@ -363,6 +454,9 @@ class SlackBridge:
         if self.decision_handler is None:
             logger.error("Decision handler not initialized")
             return
+
+        # Update view private_metadata to just the request_id for decision handler
+        view["private_metadata"] = request_id
 
         result = await self.decision_handler.handle_rejection_modal_submit(
             view_submission=view,

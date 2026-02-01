@@ -282,11 +282,25 @@ class TestBuildRejectionModal:
         assert input_block["element"]["action_id"] == "reason_input"
         assert input_block["element"]["multiline"] is True
 
-    def test_build_rejection_modal_has_private_metadata(self):
-        """Rejection modal stores request_id in private_metadata."""
-        modal = build_rejection_modal("req-456")
+    def test_build_rejection_modal_has_json_private_metadata(self):
+        """Rejection modal stores JSON with request_id and channel_id in private_metadata."""
+        import json
 
-        assert modal["private_metadata"] == "req-456"
+        modal = build_rejection_modal("req-456", "C-CODE")
+
+        metadata = json.loads(modal["private_metadata"])
+        assert metadata["request_id"] == "req-456"
+        assert metadata["channel_id"] == "C-CODE"
+
+    def test_build_rejection_modal_empty_channel_id(self):
+        """Rejection modal handles empty channel_id."""
+        import json
+
+        modal = build_rejection_modal("req-789")
+
+        metadata = json.loads(modal["private_metadata"])
+        assert metadata["request_id"] == "req-789"
+        assert metadata["channel_id"] == ""
 
     def test_build_rejection_modal_submit_button(self):
         """Rejection modal has Reject submit button."""
