@@ -108,13 +108,13 @@
 
 **Acceptance Criteria:**
 - [ ] Session bar displays editable name field
-- [ ] Default name is "Untitled Diagram"
+- [ ] Default name is "Untitled Architecture"
 - [ ] Name updates in store on change
 - [ ] Name field has character limit indicator (50 chars max)
 - [ ] Empty name shows validation warning
 
 **Test Cases:**
-1. Verify default name displays "Untitled Diagram"
+1. Verify default name displays "Untitled Architecture"
 2. Verify typing updates store state
 3. Verify character counter shows remaining chars
 4. Verify warning appears when name is empty

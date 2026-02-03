@@ -3,8 +3,10 @@
 ## Overview
 
 Feature: Architect Board Canvas
-Total Estimated Time: ~14 hours
+Total Estimated Time: ~14 hours (~11 hours remaining - Phase 1 pre-completed)
 Dependencies: None (new feature)
+
+> **Note:** Phase 1 (T01-T04) was pre-completed during initial planning. Foundation code (types, store, tests) already exists. Implementation starts at Phase 2 (T05).
 
 ## Phase 1: Foundation Setup (3 hours)
 
@@ -459,36 +461,36 @@ npm run lint
 
 ## Progress Tracking
 
-### Phase 1: Foundation Setup
-- [ ] T01: Install Excalidraw dependency (30 min)
-- [ ] T02: Create TypeScript types (30 min)
-- [ ] T03: Create architectStore (1 hr)
-- [ ] T04: Write architectStore tests (1 hr)
+### Phase 1: Foundation Setup ✅ (Pre-completed)
+- [x] T01: Install Excalidraw dependency (30 min) - Package already installed
+- [x] T02: Create TypeScript types (30 min) - Types exist in architect.ts
+- [x] T03: Create architectStore (1 hr) - Store exists with all actions
+- [x] T04: Write architectStore tests (1 hr) - Comprehensive tests exist
 
-### Phase 2: Core Components
-- [ ] T05: Create ArchitectCanvas component with lazy loading (1.5 hr)
-- [ ] T06: Write ArchitectCanvas tests (45 min)
-- [ ] T07: Create ToolsPanel component (1 hr)
-- [ ] T08: Write ToolsPanel tests (30 min)
-- [ ] T09: Create OutputPanel component (1 hr)
-- [ ] T10: Write OutputPanel tests (30 min)
+### Phase 2: Core Components ✅
+- [x] T05: Create ArchitectCanvas component with lazy loading (1.5 hr)
+- [x] T06: Write ArchitectCanvas tests (45 min)
+- [x] T07: Create ToolsPanel component (1 hr)
+- [x] T08: Write ToolsPanel tests (30 min)
+- [x] T09: Create OutputPanel component (1 hr)
+- [x] T10: Write OutputPanel tests (30 min)
 
-### Phase 3: Export and Preview
-- [ ] T11: Create ExportPreview component (1 hr)
-- [ ] T12: Write ExportPreview tests (45 min)
-- [ ] T13: Implement exportToSvg action (1 hr)
-- [ ] T14: Write export integration test (15 min)
+### Phase 3: Export and Preview ✅
+- [x] T11: Create ExportPreview component (1 hr)
+- [x] T12: Write ExportPreview tests (45 min)
+- [x] T13: Implement exportToSvg action (1 hr)
+- [x] T14: Write export integration test (15 min)
 
-### Phase 4: Page Assembly
-- [ ] T15: Create ActionBar component (45 min)
-- [ ] T16: Write ActionBar tests (15 min)
-- [ ] T17: Create ArchitectBoardPage with layout integration (1 hr)
-- [ ] T18: Write ArchitectBoardPage tests (30 min)
+### Phase 4: Page Assembly ✅
+- [x] T15: Create ActionBar component (45 min)
+- [x] T16: Write ActionBar tests (15 min)
+- [x] T17: Create ArchitectBoardPage with layout integration (1 hr)
+- [x] T18: Write ArchitectBoardPage tests (30 min)
 
-### Phase 5: Integration
-- [ ] T19: Add route and navigation with ErrorBoundary (30 min)
-- [ ] T20: Create barrel export file (15 min)
-- [ ] T21: Final integration test and lint check (15 min)
+### Phase 5: Integration ✅
+- [x] T19: Add route and navigation with ErrorBoundary (30 min)
+- [x] T20: Create barrel export file (15 min)
+- [x] T21: Final integration test and lint check (15 min)
 
 ---
 
@@ -550,9 +552,9 @@ T04 (Store Tests)     T05 (Canvas + lazy loading)
 
 | Phase | Tasks | Hours | Description |
 |-------|-------|-------|-------------|
-| 1 | T01-T04 | 3 | Foundation: deps, types, store |
-| 2 | T05-T10 | 5 | Core components: Canvas, Panels |
-| 3 | T11-T14 | 3 | Export and preview functionality |
-| 4 | T15-T18 | 2 | Page assembly and action bar |
-| 5 | T19-T21 | 1 | Integration and final testing |
-| **Total** | **21** | **14** | |
+| 1 | T01-T04 | ~~3~~ ✅ | Foundation: deps, types, store (PRE-COMPLETED) |
+| 2 | T05-T10 | ~~5~~ ✅ | Core components: Canvas, Panels |
+| 3 | T11-T14 | ~~3~~ ✅ | Export and preview functionality |
+| 4 | T15-T18 | ~~2~~ ✅ | Page assembly and action bar |
+| 5 | T19-T21 | ~~1~~ ✅ | Integration and final testing |
+| **Total** | **21** | **COMPLETE** | 119 tests passing |

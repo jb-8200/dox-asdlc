@@ -318,7 +318,7 @@ export type ExportFormat = 'svg' | 'png' | 'mmd' | 'drawio';
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| @excalidraw/excalidraw | ^0.17.x | Drawing canvas |
+| @excalidraw/excalidraw | ^0.18.0 | Drawing canvas |
 | zustand | (existing) | State management |
 | clsx | (existing) | Class composition |
 | @heroicons/react | (existing) | Icons |

@@ -1,4 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock Excalidraw's exportToSvg
+vi.mock('@excalidraw/excalidraw', () => ({
+  exportToSvg: vi.fn().mockImplementation(async () => {
+    // Return a mock SVG element
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100"/></svg>',
+      'image/svg+xml'
+    );
+    return doc.documentElement;
+  }),
+}));
+
 import { useArchitectStore } from './architectStore';
 
 describe('architectStore', () => {
@@ -277,6 +291,93 @@ describe('architectStore', () => {
       useArchitectStore.getState().setCanvasId('canvas-123');
       useArchitectStore.getState().setCanvasId(null);
       expect(useArchitectStore.getState().canvasId).toBeNull();
+    });
+  });
+
+  describe('performExport', () => {
+    it('does nothing when elements are empty', async () => {
+      // Ensure elements are empty
+      useArchitectStore.getState().updateElements([]);
+
+      await useArchitectStore.getState().performExport();
+
+      // Should not change exporting state or produce SVG
+      expect(useArchitectStore.getState().exportedSvg).toBeNull();
+    });
+
+    it('sets isExporting to true during export', async () => {
+      const mockElement = {
+        id: 'elem-1',
+        type: 'rectangle',
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 100,
+        strokeColor: '#000000',
+        backgroundColor: 'transparent',
+        fillStyle: 'hachure',
+        strokeWidth: 1,
+        strokeStyle: 'solid',
+        roughness: 1,
+        opacity: 100,
+        seed: 12345,
+        version: 1,
+        versionNonce: 1,
+        isDeleted: false,
+        groupIds: [],
+        boundElements: null,
+        updated: Date.now(),
+        link: null,
+        locked: false,
+      };
+
+      useArchitectStore.getState().updateElements([mockElement]);
+
+      // Start export but don't await
+      const exportPromise = useArchitectStore.getState().performExport();
+
+      // Check isExporting is true during export
+      expect(useArchitectStore.getState().isExporting).toBe(true);
+
+      // Wait for completion
+      await exportPromise;
+
+      // isExporting should be false after completion
+      expect(useArchitectStore.getState().isExporting).toBe(false);
+    });
+
+    it('updates exportedSvg on successful export', async () => {
+      const mockElement = {
+        id: 'elem-1',
+        type: 'rectangle',
+        x: 100,
+        y: 100,
+        width: 200,
+        height: 100,
+        strokeColor: '#000000',
+        backgroundColor: 'transparent',
+        fillStyle: 'hachure',
+        strokeWidth: 1,
+        strokeStyle: 'solid',
+        roughness: 1,
+        opacity: 100,
+        seed: 12345,
+        version: 1,
+        versionNonce: 1,
+        isDeleted: false,
+        groupIds: [],
+        boundElements: null,
+        updated: Date.now(),
+        link: null,
+        locked: false,
+      };
+
+      useArchitectStore.getState().updateElements([mockElement]);
+
+      await useArchitectStore.getState().performExport();
+
+      // Should have SVG content (from mock)
+      expect(useArchitectStore.getState().exportedSvg).toContain('<svg');
     });
   });
 });

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { exportToSvg } from '@excalidraw/excalidraw';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/types';
 import type { ArchitectElement, ArchitectAppState } from '../api/types/architect';
 
 /**
@@ -28,6 +30,7 @@ interface ArchitectState {
   updateAppState: (appState: Partial<ArchitectAppState>) => void;
   exportToSvg: (svg: string) => void;
   setIsExporting: (isExporting: boolean) => void;
+  performExport: () => Promise<void>;
   toggleToolsPanel: () => void;
   toggleOutputPanel: () => void;
   resetCanvas: () => void;
@@ -55,7 +58,7 @@ const DEFAULT_STATE = {
 /**
  * Zustand store for Architect Board Canvas state management
  */
-export const useArchitectStore = create<ArchitectState>((set) => ({
+export const useArchitectStore = create<ArchitectState>((set, get) => ({
   ...DEFAULT_STATE,
 
   setCanvasId: (id) => set({ canvasId: id }),
@@ -72,6 +75,40 @@ export const useArchitectStore = create<ArchitectState>((set) => ({
   exportToSvg: (svg) => set({ exportedSvg: svg }),
 
   setIsExporting: (isExporting) => set({ isExporting }),
+
+  /**
+   * Perform SVG export using Excalidraw's exportToSvg function
+   * Takes elements and appState from store, converts to SVG string
+   */
+  performExport: async () => {
+    const { elements, appState } = get();
+
+    // Skip if no elements to export
+    if (!elements.length) {
+      return;
+    }
+
+    set({ isExporting: true });
+
+    try {
+      // Use Excalidraw's exportToSvg
+      const svg = await exportToSvg({
+        elements: elements as unknown as readonly ExcalidrawElement[],
+        appState: {
+          ...appState,
+          exportWithDarkMode: true,
+        },
+        files: null,
+      });
+
+      // Convert SVG element to string
+      const svgString = new XMLSerializer().serializeToString(svg);
+      set({ exportedSvg: svgString, isExporting: false });
+    } catch (error) {
+      console.error('Export failed:', error);
+      set({ isExporting: false });
+    }
+  },
 
   toggleToolsPanel: () =>
     set((state) => ({ isToolsPanelOpen: !state.isToolsPanelOpen })),
