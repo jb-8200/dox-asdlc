@@ -1,4 +1,12 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+// Mock DOMPurify - returns input unchanged for test simplicity
+vi.mock('dompurify', () => ({
+  default: {
+    sanitize: (html: string) => html,
+  },
+}));
 
 // Mock environment variables
 Object.defineProperty(import.meta, 'env', {

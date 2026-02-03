@@ -49,7 +49,8 @@ const ArchitectCanvas = forwardRef<ArchitectCanvasRef, ArchitectCanvasProps>(
 
     return (
       <div
-        className={clsx('flex-1 h-full', className)}
+        className={clsx('flex-1 h-full relative', className)}
+        style={{ width: '100%', height: '100%' }}
         data-testid="architect-canvas"
       >
         <Excalidraw

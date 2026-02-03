@@ -10,6 +10,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import DOMPurify from 'dompurify';
 import { useArchitectStore } from '../../stores/architectStore';
 
 export interface ExportPreviewProps {
@@ -141,7 +142,7 @@ export default function ExportPreview({ className }: ExportPreviewProps) {
             role="img"
             aria-label="Exported SVG preview"
             data-testid="svg-preview"
-            dangerouslySetInnerHTML={{ __html: exportedSvg }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(exportedSvg, { USE_PROFILES: { svg: true } }) }}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full min-h-[150px] text-text-muted">

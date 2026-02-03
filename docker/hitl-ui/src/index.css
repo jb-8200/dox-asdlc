@@ -201,6 +201,27 @@
   stroke: #888 !important;
 }
 
+/* Excalidraw canvas sizing fix */
+/* Excalidraw needs explicit sizing on both container and internal wrapper */
+[data-testid="architect-canvas"] {
+  position: relative;
+}
+
+[data-testid="architect-canvas"] .excalidraw {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+[data-testid="architect-canvas"] .excalidraw .excalidraw-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+[data-testid="architect-canvas"] .excalidraw canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* Code/diff viewer styles */
 .diff-viewer {
   @apply font-mono text-sm;
