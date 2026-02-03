@@ -9,6 +9,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
@@ -19,6 +20,16 @@ from src.orchestrator.api.models.correlation import (
     CorrelationType,
     IdeaCorrelation,
 )
+
+
+@pytest.fixture(autouse=True)
+def enable_mock_mode(monkeypatch):
+    """Enable mock mode for all correlation API tests.
+
+    Tests manipulate MOCK_CORRELATIONS directly, so mock mode must be enabled.
+    In production, CORRELATION_MOCK_MODE defaults to false to use Redis.
+    """
+    monkeypatch.setenv("CORRELATION_MOCK_MODE", "true")
 
 
 @pytest.fixture

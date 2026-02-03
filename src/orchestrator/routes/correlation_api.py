@@ -36,7 +36,7 @@ def _use_mock_mode() -> bool:
     Returns True if CORRELATION_MOCK_MODE=true or if we're in a test environment
     without Redis available.
     """
-    return os.getenv("CORRELATION_MOCK_MODE", "true").lower() == "true"
+    return os.getenv("CORRELATION_MOCK_MODE", "false").lower() == "true"
 
 
 def _get_graph_store():
