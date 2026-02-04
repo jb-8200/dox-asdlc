@@ -6,9 +6,11 @@
  * - Selection state (selected/hovered nodes)
  * - Filters (search, correlation types)
  * - Loading/error states
+ * - Backend mode (mock/real)
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { GraphNode, GraphEdge, GraphFilters, CorrelationType } from '../types/graph';
 
 export interface GraphViewState {
@@ -28,6 +30,9 @@ export interface GraphViewState {
   isLoading: boolean;
   error: string | null;
 
+  // Backend mode (persisted to localStorage)
+  useMock: boolean;
+
   // Actions
   setGraphData: (nodes: GraphNode[], edges: GraphEdge[]) => void;
   selectNode: (nodeId: string | null) => void;
@@ -36,6 +41,7 @@ export interface GraphViewState {
   resetView: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setUseMock: (useMock: boolean) => void;
 }
 
 /**
@@ -61,63 +67,74 @@ function findNeighbors(nodeId: string, edges: GraphEdge[]): Set<string> {
   return neighbors;
 }
 
-export const useGraphViewStore = create<GraphViewState>((set, get) => ({
-  nodes: [],
-  edges: [],
-  selectedNodeId: null,
-  hoveredNodeId: null,
-  highlightedNeighbors: new Set(),
-  filters: {
-    searchQuery: '',
-    correlationTypes: ['similar', 'related', 'contradicts'] as CorrelationType[],
-  },
-  isLoading: false,
-  error: null,
-
-  setGraphData: (nodes, edges) => set({ nodes, edges }),
-
-  selectNode: (nodeId) => {
-    const { edges } = get();
-    if (!nodeId) {
-      set({ selectedNodeId: null, highlightedNeighbors: new Set() });
-      return;
-    }
-
-    // Find neighbors
-    const neighbors = findNeighbors(nodeId, edges);
-    set({ selectedNodeId: nodeId, highlightedNeighbors: neighbors });
-  },
-
-  setHoveredNode: (nodeId) => {
-    const { edges, selectedNodeId } = get();
-    if (!nodeId) {
-      set({ hoveredNodeId: null });
-      // Keep highlighted neighbors from selection if there is one
-      if (!selectedNodeId) set({ highlightedNeighbors: new Set() });
-      return;
-    }
-
-    // Find neighbors for hover
-    const neighbors = findNeighbors(nodeId, edges);
-    set({ hoveredNodeId: nodeId, highlightedNeighbors: neighbors });
-  },
-
-  setFilters: (filters) =>
-    set({
-      filters: { ...get().filters, ...filters },
-    }),
-
-  resetView: () =>
-    set({
+export const useGraphViewStore = create<GraphViewState>()(
+  persist(
+    (set, get) => ({
+      nodes: [],
+      edges: [],
       selectedNodeId: null,
       hoveredNodeId: null,
       highlightedNeighbors: new Set(),
       filters: {
         searchQuery: '',
-        correlationTypes: ['similar', 'related', 'contradicts'],
+        correlationTypes: ['similar', 'related', 'contradicts'] as CorrelationType[],
       },
-    }),
+      isLoading: false,
+      error: null,
+      useMock: true, // Default to mock mode
 
-  setLoading: (loading) => set({ isLoading: loading }),
-  setError: (error) => set({ error }),
-}));
+      setGraphData: (nodes, edges) => set({ nodes, edges }),
+
+      selectNode: (nodeId) => {
+        const { edges } = get();
+        if (!nodeId) {
+          set({ selectedNodeId: null, highlightedNeighbors: new Set() });
+          return;
+        }
+
+        // Find neighbors
+        const neighbors = findNeighbors(nodeId, edges);
+        set({ selectedNodeId: nodeId, highlightedNeighbors: neighbors });
+      },
+
+      setHoveredNode: (nodeId) => {
+        const { edges, selectedNodeId } = get();
+        if (!nodeId) {
+          set({ hoveredNodeId: null });
+          // Keep highlighted neighbors from selection if there is one
+          if (!selectedNodeId) set({ highlightedNeighbors: new Set() });
+          return;
+        }
+
+        // Find neighbors for hover
+        const neighbors = findNeighbors(nodeId, edges);
+        set({ hoveredNodeId: nodeId, highlightedNeighbors: neighbors });
+      },
+
+      setFilters: (filters) =>
+        set({
+          filters: { ...get().filters, ...filters },
+        }),
+
+      resetView: () =>
+        set({
+          selectedNodeId: null,
+          hoveredNodeId: null,
+          highlightedNeighbors: new Set(),
+          filters: {
+            searchQuery: '',
+            correlationTypes: ['similar', 'related', 'contradicts'],
+          },
+        }),
+
+      setLoading: (loading) => set({ isLoading: loading }),
+      setError: (error) => set({ error }),
+      setUseMock: (useMock) => set({ useMock }),
+    }),
+    {
+      name: 'brainflare-graph-settings',
+      // Only persist useMock setting
+      partialize: (state) => ({ useMock: state.useMock }),
+    }
+  )
+);

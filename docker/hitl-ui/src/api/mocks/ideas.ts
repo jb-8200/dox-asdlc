@@ -6,11 +6,12 @@
  */
 
 import type { Idea, CreateIdeaRequest } from '../../types/ideas';
+import { workItemFeatureIdeas } from './workItemIdeas';
 
 /**
- * Mock ideas array for development
+ * Original user-submitted mock ideas
  */
-export const mockIdeas: Idea[] = [
+const userMockIdeas: Idea[] = [
   {
     id: 'idea-001',
     content:
@@ -92,9 +93,15 @@ export const mockIdeas: Idea[] = [
 ];
 
 /**
+ * Combined mock ideas: work item features + user-submitted ideas
+ * Work item features appear first (older timestamps), then user ideas
+ */
+export const mockIdeas: Idea[] = [...workItemFeatureIdeas, ...userMockIdeas];
+
+/**
  * Counter for generating unique mock IDs
  */
-let idCounter = 7;
+let idCounter = mockIdeas.length + 1;
 
 /**
  * Generate a new mock idea from a create request

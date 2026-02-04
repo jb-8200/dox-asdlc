@@ -7,7 +7,7 @@
  * - Modal: New/Edit Idea form (popup)
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useBrainflareStore } from '../stores/brainflareStore';
 import { useGraphViewStore } from '../stores/graphViewStore';
 import {
@@ -42,7 +42,7 @@ export function BrainflareHubPage({ className }: BrainflareHubPageProps) {
     clearError,
     fetchIdeas,
   } = useBrainflareStore();
-  const { setGraphData, setLoading, setError } = useGraphViewStore();
+  const { setGraphData, setLoading, setError, useMock, setUseMock } = useGraphViewStore();
 
   /**
    * Handle form submission (create or update)
@@ -67,14 +67,28 @@ export function BrainflareHubPage({ className }: BrainflareHubPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchGraph();
+      const data = await fetchGraph(useMock);
       setGraphData(data.nodes, data.edges);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [setGraphData, setLoading, setError]);
+  }, [setGraphData, setLoading, setError, useMock]);
+
+  /**
+   * Load graph data on mount and when useMock changes
+   */
+  useEffect(() => {
+    handleRefreshGraph();
+  }, [handleRefreshGraph]);
+
+  /**
+   * Handle backend toggle
+   */
+  const handleToggleMock = useCallback(() => {
+    setUseMock(!useMock);
+  }, [useMock, setUseMock]);
 
   return (
     <div
@@ -89,6 +103,34 @@ export function BrainflareHubPage({ className }: BrainflareHubPageProps) {
             <SparklesIcon className="h-6 w-6 text-yellow-500" />
             <h1 className="text-xl font-semibold text-text-primary">Brainflare Hub</h1>
             <span className="text-sm text-text-muted">Capture and organize ideas</span>
+          </div>
+
+          {/* Mock/Real Toggle */}
+          <div className="flex items-center gap-2">
+            <div
+              className={clsx(
+                'h-2.5 w-2.5 rounded-full flex-shrink-0',
+                useMock ? 'bg-green-500' : 'bg-yellow-500'
+              )}
+              title={useMock ? 'Mock backend (always available)' : 'Real API backend'}
+            />
+            <select
+              value={useMock ? 'mock' : 'real'}
+              onChange={(e) => setUseMock(e.target.value === 'mock')}
+              className={clsx(
+                'appearance-none px-3 py-1.5 pr-8 rounded-lg border border-border-primary bg-bg-secondary',
+                'text-sm text-text-primary',
+                'focus:outline-none focus:ring-2 focus:ring-accent-teal focus:border-transparent',
+                'transition-colors cursor-pointer'
+              )}
+              aria-label="Select backend mode"
+            >
+              <option value="mock">Mock</option>
+              <option value="real">Real API</option>
+            </select>
+            <span className="hidden lg:block text-xs text-text-muted">
+              {useMock ? 'Local mock data' : 'Backend API'}
+            </span>
           </div>
         </div>
       </div>
