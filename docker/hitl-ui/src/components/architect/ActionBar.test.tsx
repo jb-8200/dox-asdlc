@@ -1,6 +1,7 @@
 /**
  * Tests for ActionBar component
  * P10-F01 Architect Board Canvas - Phase 4 (T16)
+ * P10-F02 Diagram Translation - Phase 4 (T19)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -8,13 +9,19 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 // Mock the architect store
 const mockPerformExport = vi.fn();
+const mockTranslateTo = vi.fn();
 let mockIsExporting = false;
+let mockExportedSvg: string | null = null;
+let mockIsTranslating = false;
 
 vi.mock('../../stores/architectStore', () => ({
   useArchitectStore: vi.fn((selector) => {
     const state = {
       isExporting: mockIsExporting,
       performExport: mockPerformExport,
+      exportedSvg: mockExportedSvg,
+      isTranslating: mockIsTranslating,
+      translateTo: mockTranslateTo,
     };
     return typeof selector === 'function' ? selector(state) : state;
   }),
@@ -26,6 +33,8 @@ describe('ActionBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsExporting = false;
+    mockExportedSvg = null;
+    mockIsTranslating = false;
   });
 
   describe('Button Rendering', () => {
@@ -63,10 +72,18 @@ describe('ActionBar', () => {
       expect(button).toBeDisabled();
     });
 
-    it('Translate button is disabled', () => {
+    it('Translate button is disabled when no SVG exported', () => {
+      mockExportedSvg = null;
       render(<ActionBar />);
-      const button = screen.getByRole('button', { name: /translate/i });
+      const button = screen.getByTestId('translate-button');
       expect(button).toBeDisabled();
+    });
+
+    it('Translate button is enabled when SVG is exported', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+      const button = screen.getByTestId('translate-button');
+      expect(button).not.toBeDisabled();
     });
 
     it('Export SVG button is enabled', () => {
@@ -89,10 +106,18 @@ describe('ActionBar', () => {
       expect(button).toHaveAttribute('title', 'Coming in F03');
     });
 
-    it('Translate button has "Coming in F02" tooltip', () => {
+    it('Translate button has "Export SVG first" tooltip when no SVG', () => {
+      mockExportedSvg = null;
       render(<ActionBar />);
-      const button = screen.getByRole('button', { name: /translate/i });
-      expect(button).toHaveAttribute('title', 'Coming in F02');
+      const button = screen.getByTestId('translate-button');
+      expect(button).toHaveAttribute('title', 'Export SVG first');
+    });
+
+    it('Translate button has "Translate diagram" tooltip when SVG is available', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+      const button = screen.getByTestId('translate-button');
+      expect(button).toHaveAttribute('title', 'Translate diagram');
     });
   });
 
@@ -154,6 +179,167 @@ describe('ActionBar', () => {
       expect(screen.getByRole('button', { name: /save draft/i })).toHaveAccessibleName();
       expect(screen.getByRole('button', { name: /history/i })).toHaveAccessibleName();
       expect(screen.getByRole('button', { name: /translate/i })).toHaveAccessibleName();
+    });
+  });
+
+  /**
+   * P10-F02 Translate Dropdown Tests
+   */
+  describe('Translate Dropdown (P10-F02)', () => {
+    it('opens dropdown when clicked with SVG exported', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      const button = screen.getByTestId('translate-button');
+      fireEvent.click(button);
+
+      expect(screen.getByTestId('translate-dropdown')).toBeInTheDocument();
+    });
+
+    it('does not open dropdown when no SVG exported', () => {
+      mockExportedSvg = null;
+      render(<ActionBar />);
+
+      const button = screen.getByTestId('translate-button');
+      fireEvent.click(button);
+
+      expect(screen.queryByTestId('translate-dropdown')).not.toBeInTheDocument();
+    });
+
+    it('shows PNG option in dropdown', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+
+      expect(screen.getByTestId('translate-option-png')).toBeInTheDocument();
+      // Multiple "PNG" texts may exist (tab label + dropdown), use getAllBy
+      expect(screen.getAllByText(/png/i).length).toBeGreaterThan(0);
+    });
+
+    it('shows Mermaid option in dropdown', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+
+      expect(screen.getByTestId('translate-option-mmd')).toBeInTheDocument();
+      // Multiple "Mermaid" texts may exist (tab label + dropdown), use getAllBy
+      expect(screen.getAllByText(/mermaid/i).length).toBeGreaterThan(0);
+    });
+
+    it('shows Draw.io option in dropdown', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+
+      expect(screen.getByTestId('translate-option-drawio')).toBeInTheDocument();
+      // The dropdown description includes "Draw.io XML"
+      expect(screen.getAllByText(/draw\.io/i).length).toBeGreaterThan(0);
+    });
+
+    it('calls translateTo with PNG when PNG option clicked', async () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+      fireEvent.click(screen.getByTestId('translate-option-png'));
+
+      await waitFor(() => {
+        expect(mockTranslateTo).toHaveBeenCalledWith('png');
+      });
+    });
+
+    it('calls translateTo with mmd when Mermaid option clicked', async () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+      fireEvent.click(screen.getByTestId('translate-option-mmd'));
+
+      await waitFor(() => {
+        expect(mockTranslateTo).toHaveBeenCalledWith('mmd');
+      });
+    });
+
+    it('calls translateTo with drawio when Draw.io option clicked', async () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+      fireEvent.click(screen.getByTestId('translate-option-drawio'));
+
+      await waitFor(() => {
+        expect(mockTranslateTo).toHaveBeenCalledWith('drawio');
+      });
+    });
+
+    it('closes dropdown after selecting an option', async () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+      fireEvent.click(screen.getByTestId('translate-option-png'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('translate-dropdown')).not.toBeInTheDocument();
+      });
+    });
+
+    it('disables translate button during translation', () => {
+      mockExportedSvg = '<svg></svg>';
+      mockIsTranslating = true;
+      render(<ActionBar />);
+
+      const button = screen.getByTestId('translate-button');
+      expect(button).toBeDisabled();
+    });
+
+    it('shows loading spinner during translation', () => {
+      mockExportedSvg = '<svg></svg>';
+      mockIsTranslating = true;
+      render(<ActionBar />);
+
+      expect(screen.getByTestId('translate-spinner')).toBeInTheDocument();
+    });
+
+    it('shows "Translating..." text during translation', () => {
+      mockExportedSvg = '<svg></svg>';
+      mockIsTranslating = true;
+      render(<ActionBar />);
+
+      expect(screen.getByText(/translating\.\.\./i)).toBeInTheDocument();
+    });
+
+    it('has aria-expanded attribute on button', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      const button = screen.getByTestId('translate-button');
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('dropdown has role menu', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    it('dropdown options have role menuitem', () => {
+      mockExportedSvg = '<svg></svg>';
+      render(<ActionBar />);
+
+      fireEvent.click(screen.getByTestId('translate-button'));
+
+      const menuItems = screen.getAllByRole('menuitem');
+      expect(menuItems).toHaveLength(3);
     });
   });
 });

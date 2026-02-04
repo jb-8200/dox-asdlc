@@ -1,20 +1,38 @@
 /**
  * Tests for OutputPanel component
  * P10-F01 Architect Board Canvas - Phase 2 (T10)
+ * P10-F02 Diagram Translation - Phase 4 (T21)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-// Mock the architect store
+// Mock state variables
 const mockToggleOutputPanel = vi.fn();
+const mockSetActiveOutputTab = vi.fn();
 let mockIsOutputPanelOpen = false;
+let mockActiveOutputTab = 'svg';
+let mockExportedSvg: string | null = null;
+let mockIsTranslating = false;
+let mockTranslationError: string | null = null;
+let mockTranslatedContent = {
+  png: null as string | null,
+  mmd: null as string | null,
+  drawio: null as string | null,
+};
 
+// Mock the architect store
 vi.mock('../../stores/architectStore', () => ({
   useArchitectStore: vi.fn((selector) => {
     const state = {
       isOutputPanelOpen: mockIsOutputPanelOpen,
       toggleOutputPanel: mockToggleOutputPanel,
+      activeOutputTab: mockActiveOutputTab,
+      setActiveOutputTab: mockSetActiveOutputTab,
+      exportedSvg: mockExportedSvg,
+      isTranslating: mockIsTranslating,
+      translationError: mockTranslationError,
+      translatedContent: mockTranslatedContent,
     };
     return typeof selector === 'function' ? selector(state) : state;
   }),
@@ -26,6 +44,11 @@ describe('OutputPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsOutputPanelOpen = false;
+    mockActiveOutputTab = 'svg';
+    mockExportedSvg = null;
+    mockIsTranslating = false;
+    mockTranslationError = null;
+    mockTranslatedContent = { png: null, mmd: null, drawio: null };
   });
 
   describe('Collapsed State', () => {
@@ -100,42 +123,57 @@ describe('OutputPanel', () => {
 
     it('SVG tab is active by default', () => {
       mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'svg';
       render(<OutputPanel />);
 
       const svgTab = screen.getByRole('tab', { name: /svg/i });
       expect(svgTab).toHaveAttribute('aria-selected', 'true');
     });
 
-    it('shows PNG tab as disabled', () => {
+    it('shows all format tabs enabled (P10-F02)', () => {
+      mockIsOutputPanelOpen = true;
+      render(<OutputPanel />);
+
+      // All tabs should be present and clickable
+      expect(screen.getByRole('tab', { name: /svg/i })).not.toBeDisabled();
+      expect(screen.getByRole('tab', { name: /png/i })).not.toBeDisabled();
+      expect(screen.getByRole('tab', { name: /mermaid/i })).not.toBeDisabled();
+      expect(screen.getByRole('tab', { name: /draw\.io/i })).not.toBeDisabled();
+    });
+
+    it('clicking tab calls setActiveOutputTab', () => {
       mockIsOutputPanelOpen = true;
       render(<OutputPanel />);
 
       const pngTab = screen.getByRole('tab', { name: /png/i });
-      expect(pngTab).toBeDisabled();
+      fireEvent.click(pngTab);
+
+      expect(mockSetActiveOutputTab).toHaveBeenCalledWith('png');
     });
 
-    it('shows MMD tab as disabled', () => {
+    it('shows ready badge when translation content is available', () => {
       mockIsOutputPanelOpen = true;
+      mockTranslatedContent = { png: 'base64data', mmd: null, drawio: null };
       render(<OutputPanel />);
 
-      const mmdTab = screen.getByRole('tab', { name: /mmd/i });
-      expect(mmdTab).toBeDisabled();
+      expect(screen.getByTestId('badge-png')).toBeInTheDocument();
     });
 
-    it('shows DrawIO tab as disabled', () => {
+    it('does not show badge for SVG tab', () => {
       mockIsOutputPanelOpen = true;
+      mockExportedSvg = '<svg></svg>';
       render(<OutputPanel />);
 
-      const drawioTab = screen.getByRole('tab', { name: /drawio/i });
-      expect(drawioTab).toBeDisabled();
+      expect(screen.queryByTestId('badge-svg')).not.toBeInTheDocument();
     });
 
-    it('disabled tabs have "Coming in F02" tooltip', () => {
+    it('shows loading indicator when translating', () => {
       mockIsOutputPanelOpen = true;
+      mockIsTranslating = true;
+      mockActiveOutputTab = 'png';
       render(<OutputPanel />);
 
-      const pngTab = screen.getByRole('tab', { name: /png/i });
-      expect(pngTab).toHaveAttribute('title', 'Coming in F02');
+      expect(screen.getByTestId('loading-png')).toBeInTheDocument();
     });
   });
 
@@ -188,6 +226,68 @@ describe('OutputPanel', () => {
       render(<OutputPanel className="custom-class" />);
       const panel = screen.getByTestId('output-panel');
       expect(panel).toHaveClass('custom-class');
+    });
+  });
+
+  /**
+   * P10-F02 Multi-tab tests
+   */
+  describe('Multi-Tab Content (P10-F02)', () => {
+    it('renders FormatTabContent for SVG tab', () => {
+      mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'svg';
+      mockExportedSvg = '<svg><rect/></svg>';
+      render(<OutputPanel />);
+
+      // FormatTabContent should show the SVG preview
+      expect(screen.getByTestId('export-preview-placeholder')).toBeInTheDocument();
+    });
+
+    it('renders FormatTabContent for PNG tab', () => {
+      mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'png';
+      mockTranslatedContent = { png: 'base64data', mmd: null, drawio: null };
+      render(<OutputPanel />);
+
+      expect(screen.getByTestId('export-preview-placeholder')).toBeInTheDocument();
+    });
+
+    it('renders FormatTabContent for Mermaid tab', () => {
+      mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'mmd';
+      mockTranslatedContent = { png: null, mmd: 'flowchart TB', drawio: null };
+      render(<OutputPanel />);
+
+      expect(screen.getByTestId('export-preview-placeholder')).toBeInTheDocument();
+    });
+
+    it('renders FormatTabContent for Draw.io tab', () => {
+      mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'drawio';
+      mockTranslatedContent = { png: null, mmd: null, drawio: '<mxfile/>' };
+      render(<OutputPanel />);
+
+      expect(screen.getByTestId('export-preview-placeholder')).toBeInTheDocument();
+    });
+
+    it('shows loading state in FormatTabContent during translation', () => {
+      mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'mmd';
+      mockIsTranslating = true;
+      render(<OutputPanel />);
+
+      // The FormatTabContent should show loading state
+      expect(screen.getByTestId('export-preview-placeholder')).toBeInTheDocument();
+    });
+
+    it('passes translation error to FormatTabContent', () => {
+      mockIsOutputPanelOpen = true;
+      mockActiveOutputTab = 'png';
+      mockTranslationError = 'Model not available';
+      render(<OutputPanel />);
+
+      // Error should be passed to FormatTabContent
+      expect(screen.getByTestId('export-preview-placeholder')).toBeInTheDocument();
     });
   });
 });

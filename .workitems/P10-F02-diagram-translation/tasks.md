@@ -557,25 +557,25 @@ npm run build
 - [ ] T06: Register architect router (15 min)
 
 ### Phase 2: Frontend API and Types
-- [ ] T07: Extend architect types (30 min)
-- [ ] T08: Implement architect API client (45 min)
-- [ ] T09: Write architect API client tests (30 min)
-- [ ] T10: Create architect API mock data (15 min)
+- [x] T07: Extend architect types (30 min)
+- [x] T08: Implement architect API client (45 min)
+- [x] T09: Write architect API client tests (30 min)
+- [x] T10: Create architect API mock data (15 min)
 
 ### Phase 3: Store Extensions
-- [ ] T11: Extend architectStore with translation state (1 hr)
-- [ ] T12: Write architectStore translation tests (1 hr)
+- [x] T11: Extend architectStore with translation state (1 hr)
+- [x] T12: Write architectStore translation tests (1 hr)
 
 ### Phase 4: UI Component Updates
-- [ ] T13: Install react-syntax-highlighter (15 min)
-- [ ] T14: Create FormatTabContent component (1 hr)
-- [ ] T15: Write FormatTabContent tests (45 min)
-- [ ] T16: Update ExportPreview for multi-format (45 min)
-- [ ] T17: Write ExportPreview multi-format tests (30 min)
-- [ ] T18: Update ActionBar with Translate dropdown (1 hr)
-- [ ] T19: Write ActionBar translation tests (30 min)
-- [ ] T20: Update OutputPanel with all format tabs (45 min)
-- [ ] T21: Write OutputPanel multi-tab tests (30 min)
+- [ ] T13: Install react-syntax-highlighter (15 min) - SKIPPED: Used existing prismjs
+- [x] T14: Create FormatTabContent component (1 hr)
+- [x] T15: Write FormatTabContent tests (45 min)
+- [ ] T16: Update ExportPreview for multi-format (45 min) - SKIPPED: Using FormatTabContent directly
+- [ ] T17: Write ExportPreview multi-format tests (30 min) - SKIPPED: Using FormatTabContent tests
+- [x] T18: Update ActionBar with Translate dropdown (1 hr)
+- [x] T19: Write ActionBar translation tests (30 min)
+- [x] T20: Update OutputPanel with all format tabs (45 min)
+- [x] T21: Write OutputPanel multi-tab tests (30 min)
 
 ### Phase 5: Integration and Polish
 - [ ] T22: Create toast notifications (30 min)

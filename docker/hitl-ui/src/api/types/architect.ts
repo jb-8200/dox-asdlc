@@ -82,3 +82,78 @@ export interface ArchitectExport {
  * Supported export formats for architect diagrams
  */
 export type ExportFormat = 'svg' | 'png' | 'mmd' | 'drawio';
+
+/**
+ * Translation formats supported by the translation API
+ * P10-F02 Diagram Translation
+ */
+export type TranslationFormat = 'png' | 'mmd' | 'drawio';
+
+/**
+ * Options for diagram translation
+ * P10-F02 Diagram Translation
+ */
+export interface TranslateOptions {
+  /** Image size for PNG output */
+  size?: '2k' | '4k';
+  /** Hint for Mermaid diagram type (flowchart, sequence, class, etc.) */
+  diagramType?: string;
+}
+
+/**
+ * Request body for the translate API
+ * P10-F02 Diagram Translation
+ */
+export interface TranslateRequest {
+  /** Raw SVG content string from Excalidraw export */
+  svgContent: string;
+  /** Target translation format */
+  format: TranslationFormat;
+  /** Optional translation options */
+  options?: TranslateOptions;
+}
+
+/**
+ * Response from the translate API
+ * P10-F02 Diagram Translation
+ */
+export interface TranslateResponse {
+  /** Translated content - Base64 for PNG, raw string for Mermaid/Draw.io */
+  content: string;
+  /** The format of the translated content */
+  format: TranslationFormat;
+  /** The LLM model used for translation */
+  modelUsed: string;
+  /** Additional metadata about the translation */
+  metadata?: {
+    /** Image width for PNG */
+    width?: number;
+    /** Image height for PNG */
+    height?: number;
+    /** Detected diagram type for Mermaid */
+    diagramType?: string;
+  };
+}
+
+/**
+ * Error codes for translation failures
+ * P10-F02 Diagram Translation
+ */
+export type TranslationErrorCode =
+  | 'MODEL_ERROR'
+  | 'INVALID_FORMAT'
+  | 'SVG_PARSE_ERROR'
+  | 'RATE_LIMIT';
+
+/**
+ * Error response from the translate API
+ * P10-F02 Diagram Translation
+ */
+export interface TranslationError {
+  /** Human-readable error message */
+  error: string;
+  /** Machine-readable error code */
+  code: TranslationErrorCode;
+  /** Additional error details */
+  details?: string;
+}

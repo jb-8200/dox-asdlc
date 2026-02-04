@@ -188,3 +188,13 @@ export {
   generateMockIdea,
   simulateIdeaDelay,
 } from './ideas';
+
+// Architect Board Translation mocks (P10-F02)
+export {
+  mockTranslateDiagram,
+  getMockPngBase64,
+  getMockMermaidContent,
+  getMockDrawioContent,
+  delay as architectDelay,
+  randomDelay as architectRandomDelay,
+} from './architect';
