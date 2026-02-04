@@ -1,5 +1,12 @@
 """Orchestrator API models package."""
 
+from src.orchestrator.api.models.architect import (
+    ExportFormat,
+    TranslateErrorCode,
+    TranslateErrorResponse,
+    TranslateRequest,
+    TranslateResponse,
+)
 from src.orchestrator.api.models.classification import (
     BatchClassificationRequest,
     ClassificationJob,
@@ -54,6 +61,12 @@ from src.orchestrator.api.models.llm_config import (
 )
 
 __all__ = [
+    # Architect models
+    "ExportFormat",
+    "TranslateErrorCode",
+    "TranslateErrorResponse",
+    "TranslateRequest",
+    "TranslateResponse",
     # Classification models
     "BatchClassificationRequest",
     "ClassificationJob",

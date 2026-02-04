@@ -17,6 +17,7 @@ import {
   ChartBarIcon,
   UserGroupIcon,
   SparklesIcon,
+  PaintBrushIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 
@@ -45,6 +46,7 @@ const navigationSections: NavSection[] = [
       { name: 'Kubernetes', href: '/k8s', icon: ServerIcon },
       { name: 'Metrics', href: '/metrics', icon: ChartBarIcon },
       { name: 'Ideation Studio', href: '/studio/ideation', icon: LightBulbIcon },
+      { name: 'Architect Board', href: '/architect', icon: PaintBrushIcon },
       { name: 'Brainflare Hub', href: '/brainflare', icon: SparklesIcon },
       { name: 'HITL Gates', href: '/gates', icon: ShieldCheckIcon },
       { name: 'Artifacts', href: '/artifacts', icon: FolderIcon },

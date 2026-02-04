@@ -13,3 +13,6 @@ export * from './services';
 
 // Re-export all DevOps Activity types (P06-F07)
 export * from './devops';
+
+// Re-export all Architect Board Canvas types (P10-F01)
+export * from './architect';

@@ -43,6 +43,7 @@ from src.orchestrator.routes.classification_api import (
     router as classification_api_router,
     admin_router as classification_admin_router,
 )
+from src.orchestrator.routes.architect_api import router as architect_api_router
 
 # Configure logging
 logging.basicConfig(
@@ -236,6 +237,9 @@ def create_app() -> FastAPI:
     app.include_router(classification_api_router)
     app.include_router(classification_admin_router)
 
+    # Architect Board API endpoints (for diagram translation)
+    app.include_router(architect_api_router)
+
     return app
 
 
@@ -265,6 +269,7 @@ def main() -> None:
     logger.info(f"Correlation API: http://localhost:{port}/api/brainflare/correlations")
     logger.info(f"Classification API: http://localhost:{port}/api/ideas/classify")
     logger.info(f"Taxonomy Admin API: http://localhost:{port}/api/admin/labels/taxonomy")
+    logger.info(f"Architect API: http://localhost:{port}/api/architect/translate")
 
     # Handle shutdown signals
     def signal_handler(signum: int, frame: object) -> None:
