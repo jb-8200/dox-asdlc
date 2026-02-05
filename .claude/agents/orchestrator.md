@@ -132,3 +132,69 @@ Confirm? (Y/N)
 ```
 
 See `.claude/rules/hitl-gates.md` for full specification.
+
+## Status Update After Operations (Mandatory)
+
+After completing any significant operation, orchestrator MUST publish a `STATUS_UPDATE` message. This ensures all agents stay informed of progress.
+
+**What counts as an "operation":**
+
+| Operation Type | Requires STATUS_UPDATE |
+|----------------|------------------------|
+| Commit to main | Yes |
+| Contract approval/rejection | Yes |
+| Issue creation/closure | Yes |
+| Meta file updates | Yes |
+| E2E test completion | Yes |
+| Processing BLOCKING_ISSUE | Yes |
+| Reading files (information gathering) | No |
+| Checking messages | No |
+
+**STATUS_UPDATE message format:**
+
+```json
+{
+  "type": "STATUS_UPDATE",
+  "to": ["pm-cli", "backend", "frontend"],
+  "subject": "Brief description of what was done",
+  "body": "Detailed summary including:\n- What operation was performed\n- Relevant file paths or commit SHAs\n- Any follow-up actions needed"
+}
+```
+
+**Example STATUS_UPDATE messages:**
+
+After committing a feature:
+```json
+{
+  "type": "STATUS_UPDATE",
+  "to": ["pm-cli"],
+  "subject": "Committed P08-F03 to main",
+  "body": "Commit: abc1234\nFiles: 5 changed\nTests: 12 unit, 3 integration\n\nFeature complete. Ready for deployment."
+}
+```
+
+After processing a blocking issue:
+```json
+{
+  "type": "STATUS_UPDATE",
+  "to": ["pm-cli", "frontend"],
+  "subject": "Resolved BLOCKING_ISSUE: Missing API endpoint",
+  "body": "Added endpoint POST /api/tasks to contracts/current/orchestrator-api.yaml\n\nFrontend can proceed with integration."
+}
+```
+
+After creating GitHub issues from review:
+```json
+{
+  "type": "STATUS_UPDATE",
+  "to": ["pm-cli"],
+  "subject": "Created 3 issues from code review",
+  "body": "Issues created:\n- #42: SEC: Input validation missing\n- #43: CODE: Duplicate error handling\n- #44: DEFERRED: Add caching layer\n\nSecurity issue #42 should be prioritized."
+}
+```
+
+**Why this matters:**
+- PM CLI needs visibility into orchestrator actions
+- Other agents may be waiting for specific operations
+- Creates audit trail of coordination decisions
+- Enables async workflow where agents don't need to wait in real-time

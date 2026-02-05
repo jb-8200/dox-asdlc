@@ -70,3 +70,6 @@ context/packs/*.json
 
 # Wiki (separate git repo, cloned locally for VS Code visibility)
 wiki/
+
+# Agent worktrees (parallel session isolation)
+.worktrees/

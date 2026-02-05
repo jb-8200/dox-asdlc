@@ -13,6 +13,7 @@ import logging
 import os
 import subprocess
 import sys
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.redis_client import close_redis_client, get_redis_client
@@ -315,22 +316,30 @@ class CoordinationMCPServer:
             }
 
     async def coord_get_presence(self) -> dict[str, Any]:
-        """Get presence information for all CLI instances.
+        """Get presence information for all CLI instances with stale detection.
 
         Returns:
-            Dict with success status and instance presence data
+            Dict with success status and instance presence data including
+            stale flag and seconds since last heartbeat.
 
         Example response:
             {
                 "success": true,
                 "instances": {
                     "backend": {
+                        "instance_id": "backend",
                         "active": true,
-                        "last_heartbeat": "2026-01-23T12:00:00Z"
+                        "last_heartbeat": "2026-01-23T12:00:00Z",
+                        "session_id": "abc-123",
+                        "stale": false,
+                        "seconds_since_heartbeat": 45
                     },
-                    "orchestrator": {
+                    "frontend": {
+                        "instance_id": "frontend",
                         "active": true,
-                        "last_heartbeat": "2026-01-23T12:01:00Z"
+                        "last_heartbeat": "2026-01-23T11:50:00Z",
+                        "stale": true,
+                        "seconds_since_heartbeat": 600
                     }
                 }
             }
@@ -338,17 +347,171 @@ class CoordinationMCPServer:
         try:
             client = await self._get_client()
             presence = await client.get_presence()
+            now = datetime.now(UTC)
+
+            # Stale threshold: 5 minutes (300 seconds)
+            stale_threshold_seconds = 300
+
+            instances: dict[str, Any] = {}
+            for instance_id, info in presence.items():
+                # Get basic info from PresenceInfo.to_dict()
+                instance_data = info.to_dict()
+
+                # Calculate time since last heartbeat
+                last_hb = info.last_heartbeat
+                if last_hb.tzinfo is None:
+                    last_hb = last_hb.replace(tzinfo=UTC)
+                delta = now - last_hb
+                seconds_since_heartbeat = int(delta.total_seconds())
+
+                # Add stale detection fields
+                instance_data["stale"] = seconds_since_heartbeat >= stale_threshold_seconds
+                instance_data["seconds_since_heartbeat"] = seconds_since_heartbeat
+
+                instances[instance_id] = instance_data
 
             return {
                 "success": True,
-                "instances": {
-                    instance_id: info.to_dict()
-                    for instance_id, info in presence.items()
-                },
+                "instances": instances,
             }
 
         except Exception as e:
             logger.error(f"Failed to get presence: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+            }
+
+    async def coord_register_presence(
+        self,
+        role: str,
+        worktree_path: str | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Register session presence with metadata.
+
+        Registers the current session as active with optional metadata.
+        This should be called at session startup.
+
+        Args:
+            role: The role/instance ID to register (e.g., "backend", "frontend")
+            worktree_path: Optional path to the git worktree for this session
+            session_id: Optional unique session identifier
+
+        Returns:
+            Dict with success status and registration details
+
+        Example response:
+            {
+                "success": true,
+                "role": "backend",
+                "registered_at": "2026-02-05T10:00:00Z",
+                "worktree_path": "/path/to/.worktrees/backend",
+                "session_id": "session-abc123"
+            }
+        """
+        try:
+            client = await self._get_client()
+            await client.register_instance(
+                instance_id=role,
+                session_id=session_id,
+            )
+
+            now = datetime.now(UTC)
+            result: dict[str, Any] = {
+                "success": True,
+                "role": role,
+                "registered_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+
+            if worktree_path:
+                result["worktree_path"] = worktree_path
+            if session_id:
+                result["session_id"] = session_id
+
+            logger.info(f"Registered presence for role: {role}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to register presence for {role}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+            }
+
+    async def coord_deregister_presence(self, role: str) -> dict[str, Any]:
+        """Mark session as inactive.
+
+        Deregisters the session, marking it as inactive while preserving
+        the last heartbeat timestamp for history. This should be called
+        when a session is ending gracefully.
+
+        Args:
+            role: The role/instance ID to deregister
+
+        Returns:
+            Dict with success status
+
+        Example response:
+            {
+                "success": true,
+                "role": "backend"
+            }
+        """
+        try:
+            client = await self._get_client()
+            await client.unregister_instance(role)
+
+            logger.info(f"Deregistered presence for role: {role}")
+            return {
+                "success": True,
+                "role": role,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to deregister presence for {role}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+            }
+
+    async def coord_heartbeat(self, role: str) -> dict[str, Any]:
+        """Update heartbeat timestamp for a session.
+
+        Updates only the heartbeat timestamp to indicate the session is
+        still active. This should be called periodically (every 60 seconds)
+        to prevent the session from being marked as stale.
+
+        The operation refreshes the TTL to 5 minutes and is designed to
+        be fast (<100ms).
+
+        Args:
+            role: The role/instance ID to heartbeat
+
+        Returns:
+            Dict with success status and new heartbeat timestamp
+
+        Example response:
+            {
+                "success": true,
+                "role": "backend",
+                "last_heartbeat": "2026-02-05T10:00:00Z"
+            }
+        """
+        try:
+            client = await self._get_client()
+            await client.heartbeat(role)
+
+            now = datetime.now(UTC)
+            logger.debug(f"Heartbeat for role: {role}")
+            return {
+                "success": True,
+                "role": role,
+                "last_heartbeat": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to heartbeat for {role}: {e}")
             return {
                 "success": False,
                 "error": str(e),
@@ -496,7 +659,9 @@ class CoordinationMCPServer:
             },
             {
                 "name": "coord_get_presence",
-                "description": "Get presence information for all CLI instances",
+                "description": (
+                    "Get presence info for CLI instances with stale detection"
+                ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -514,6 +679,56 @@ class CoordinationMCPServer:
                             "default": 100,
                         },
                     },
+                },
+            },
+            {
+                "name": "coord_register_presence",
+                "description": "Register session as active with metadata. Call at session startup.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "role": {
+                            "type": "string",
+                            "description": "Role/instance ID to register (e.g., backend, frontend)",
+                        },
+                        "worktree_path": {
+                            "type": "string",
+                            "description": "Optional path to git worktree for this session",
+                        },
+                        "session_id": {
+                            "type": "string",
+                            "description": "Optional unique session identifier",
+                        },
+                    },
+                    "required": ["role"],
+                },
+            },
+            {
+                "name": "coord_deregister_presence",
+                "description": "Mark session as inactive. Call when session ends gracefully.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "role": {
+                            "type": "string",
+                            "description": "Role/instance ID to deregister",
+                        },
+                    },
+                    "required": ["role"],
+                },
+            },
+            {
+                "name": "coord_heartbeat",
+                "description": "Update heartbeat timestamp. Call every 60 seconds to stay active.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "role": {
+                            "type": "string",
+                            "description": "Role/instance ID to heartbeat",
+                        },
+                    },
+                    "required": ["role"],
                 },
             },
         ]
@@ -571,6 +786,12 @@ class CoordinationMCPServer:
                     result = await self.coord_get_presence()
                 elif tool_name == "coord_get_notifications":
                     result = await self.coord_get_notifications(**arguments)
+                elif tool_name == "coord_register_presence":
+                    result = await self.coord_register_presence(**arguments)
+                elif tool_name == "coord_deregister_presence":
+                    result = await self.coord_deregister_presence(**arguments)
+                elif tool_name == "coord_heartbeat":
+                    result = await self.coord_heartbeat(**arguments)
                 else:
                     return {
                         "jsonrpc": "2.0",

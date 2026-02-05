@@ -46,6 +46,10 @@ class MessageType(str, Enum):
     DEVOPS_COMPLETE = "DEVOPS_COMPLETE"
     DEVOPS_FAILED = "DEVOPS_FAILED"
 
+    # Session lifecycle
+    SESSION_START = "SESSION_START"
+    SESSION_END = "SESSION_END"
+
 
 class MessagePayload(BaseModel):
     """Payload content for coordination messages."""

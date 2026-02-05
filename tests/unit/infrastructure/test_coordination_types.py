@@ -20,7 +20,7 @@ class TestMessageType:
     """Tests for MessageType enum."""
 
     def test_all_message_types_defined(self) -> None:
-        """Test that all 20 message types are defined."""
+        """Test that all message types are defined."""
         expected_types = {
             "READY_FOR_REVIEW",
             "REVIEW_COMPLETE",
@@ -43,6 +43,9 @@ class TestMessageType:
             "DEVOPS_STEP_UPDATE",
             "DEVOPS_COMPLETE",
             "DEVOPS_FAILED",
+            # Session lifecycle
+            "SESSION_START",
+            "SESSION_END",
         }
         actual_types = {t.value for t in MessageType}
         assert actual_types == expected_types
@@ -145,6 +148,67 @@ class TestMessageType:
         parsed = json.loads(json_str)
         assert parsed["type"] == "DEVOPS_STARTED"
         assert parsed["from"] == "devops"
+
+    def test_session_start_message_type_exists(self) -> None:
+        """Test that SESSION_START message type is defined."""
+        assert MessageType.SESSION_START.value == "SESSION_START"
+
+    def test_session_end_message_type_exists(self) -> None:
+        """Test that SESSION_END message type is defined."""
+        assert MessageType.SESSION_END.value == "SESSION_END"
+
+    def test_session_start_in_coordination_message(self) -> None:
+        """Test that SESSION_START can be used in CoordinationMessage."""
+        msg = CoordinationMessage(
+            id="msg-session-start",
+            type=MessageType.SESSION_START,
+            from_instance="backend",
+            to_instance="all",
+            timestamp=datetime(2026, 2, 5, 10, 0, 0, tzinfo=timezone.utc),
+            requires_ack=False,
+            payload=MessagePayload(
+                subject="Session started",
+                description="Backend agent session started in worktree"
+            ),
+        )
+        assert msg.type == MessageType.SESSION_START
+        assert msg.to_dict()["type"] == "SESSION_START"
+
+    def test_session_end_in_coordination_message(self) -> None:
+        """Test that SESSION_END can be used in CoordinationMessage."""
+        msg = CoordinationMessage(
+            id="msg-session-end",
+            type=MessageType.SESSION_END,
+            from_instance="backend",
+            to_instance="all",
+            timestamp=datetime(2026, 2, 5, 12, 0, 0, tzinfo=timezone.utc),
+            requires_ack=False,
+            payload=MessagePayload(
+                subject="Session ended",
+                description="Backend agent session ended gracefully"
+            ),
+        )
+        assert msg.type == MessageType.SESSION_END
+        assert msg.to_dict()["type"] == "SESSION_END"
+
+    def test_session_message_json_serialization(self) -> None:
+        """Test that SESSION message types serialize to JSON correctly."""
+        msg = CoordinationMessage(
+            id="msg-session-json",
+            type=MessageType.SESSION_START,
+            from_instance="frontend",
+            to_instance="all",
+            timestamp=datetime(2026, 2, 5, 10, 0, 0, tzinfo=timezone.utc),
+            requires_ack=False,
+            payload=MessagePayload(
+                subject="Session started",
+                description="Frontend agent starting up"
+            ),
+        )
+        json_str = msg.to_json()
+        parsed = json.loads(json_str)
+        assert parsed["type"] == "SESSION_START"
+        assert parsed["from"] == "frontend"
 
 
 class TestMessagePayload:

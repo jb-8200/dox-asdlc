@@ -361,13 +361,16 @@ class TestCoordinationMCPServerSchemas:
         """Test that tool schemas are valid."""
         schemas = server.get_tool_schemas()
 
-        assert len(schemas) == 5
+        assert len(schemas) == 8
         tool_names = [s["name"] for s in schemas]
         assert "coord_publish_message" in tool_names
         assert "coord_check_messages" in tool_names
         assert "coord_ack_message" in tool_names
         assert "coord_get_presence" in tool_names
         assert "coord_get_notifications" in tool_names
+        assert "coord_register_presence" in tool_names
+        assert "coord_deregister_presence" in tool_names
+        assert "coord_heartbeat" in tool_names
 
     def test_publish_schema_has_required_fields(
         self,
@@ -433,7 +436,7 @@ class TestCoordinationMCPServerRequestHandling:
 
         assert response["id"] == 2
         assert "result" in response
-        assert len(response["result"]["tools"]) == 5
+        assert len(response["result"]["tools"]) == 8
 
     @pytest.mark.asyncio
     async def test_handle_tools_call_publish(
@@ -850,3 +853,501 @@ class TestMessageAttribution:
             call_kwargs = mock_client.publish_message.call_args[1]
             assert call_kwargs["from_instance"] == "frontend"
             assert call_kwargs["from_instance"] == server._instance_id
+
+
+class TestPresenceManagement:
+    """Tests for presence management MCP tools (T05-T08).
+
+    These tests cover:
+    - T05: coord_register_presence
+    - T06: coord_deregister_presence
+    - T07: coord_heartbeat
+    - T08: Stale detection in coord_get_presence
+    """
+
+    @pytest.fixture
+    def server(self) -> CoordinationMCPServer:
+        """Create test server with known identity."""
+        with patch.dict("os.environ", {"CLAUDE_INSTANCE_ID": "backend"}):
+            return CoordinationMCPServer()
+
+    @pytest.fixture
+    def mock_client(self) -> AsyncMock:
+        """Create mock coordination client."""
+        return AsyncMock()
+
+    # T05: coord_register_presence tests
+
+    @pytest.mark.asyncio
+    async def test_register_presence_success(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test successful presence registration with all fields."""
+        mock_client.register_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_register_presence(
+            role="backend",
+            worktree_path="/path/to/.worktrees/backend",
+            session_id="session-abc123",
+        )
+
+        assert result["success"] is True
+        assert result["role"] == "backend"
+        assert "registered_at" in result
+        mock_client.register_instance.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_register_presence_minimal_fields(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test presence registration with only required role field."""
+        mock_client.register_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_register_presence(role="frontend")
+
+        assert result["success"] is True
+        assert result["role"] == "frontend"
+        mock_client.register_instance.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_register_presence_updates_existing(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test re-registration updates existing presence."""
+        mock_client.register_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        # First registration
+        result1 = await server.coord_register_presence(
+            role="backend",
+            session_id="session-1",
+        )
+        assert result1["success"] is True
+
+        # Second registration (update)
+        result2 = await server.coord_register_presence(
+            role="backend",
+            session_id="session-2",
+        )
+        assert result2["success"] is True
+
+        # Should have been called twice
+        assert mock_client.register_instance.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_register_presence_redis_error(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test presence registration handles Redis errors."""
+        mock_client.register_instance = AsyncMock(
+            side_effect=Exception("Redis connection failed")
+        )
+        server._client = mock_client
+
+        result = await server.coord_register_presence(role="backend")
+
+        assert result["success"] is False
+        assert "error" in result
+        assert "Redis" in result["error"] or "connection" in result["error"].lower()
+
+    # T06: coord_deregister_presence tests
+
+    @pytest.mark.asyncio
+    async def test_deregister_presence_active_session(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test deregistration of active session marks it inactive."""
+        mock_client.unregister_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_deregister_presence(role="backend")
+
+        assert result["success"] is True
+        assert result["role"] == "backend"
+        mock_client.unregister_instance.assert_awaited_once_with("backend")
+
+    @pytest.mark.asyncio
+    async def test_deregister_presence_already_inactive(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test deregistration of already inactive session succeeds."""
+        mock_client.unregister_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_deregister_presence(role="orchestrator")
+
+        assert result["success"] is True
+        mock_client.unregister_instance.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_deregister_presence_nonexistent(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test deregistration of non-existent session succeeds (idempotent)."""
+        mock_client.unregister_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_deregister_presence(role="devops")
+
+        assert result["success"] is True
+        mock_client.unregister_instance.assert_awaited_once()
+
+    # T07: coord_heartbeat tests
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_active_session(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test heartbeat updates timestamp for active session."""
+        mock_client.heartbeat = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_heartbeat(role="backend")
+
+        assert result["success"] is True
+        assert result["role"] == "backend"
+        assert "last_heartbeat" in result
+        mock_client.heartbeat.assert_awaited_once_with("backend")
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_stale_session_reactivates(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test heartbeat on stale session updates timestamp."""
+        mock_client.heartbeat = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_heartbeat(role="frontend")
+
+        assert result["success"] is True
+        mock_client.heartbeat.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_nonexistent_session(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test heartbeat on non-existent session."""
+        mock_client.heartbeat = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        result = await server.coord_heartbeat(role="devops")
+
+        # Heartbeat should still succeed - it creates/updates the entry
+        assert result["success"] is True
+        mock_client.heartbeat.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_error_handling(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test heartbeat handles errors gracefully."""
+        mock_client.heartbeat = AsyncMock(side_effect=Exception("Redis timeout"))
+        server._client = mock_client
+
+        result = await server.coord_heartbeat(role="backend")
+
+        assert result["success"] is False
+        assert "error" in result
+
+    # T08: Stale detection in coord_get_presence tests
+
+    @pytest.mark.asyncio
+    async def test_get_presence_includes_stale_flag(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test get_presence response includes stale flag."""
+        mock_presence = {
+            "backend": PresenceInfo(
+                instance_id="backend",
+                active=True,
+                last_heartbeat=datetime(2026, 2, 5, 10, 0, 0, tzinfo=timezone.utc),
+            ),
+        }
+        mock_client.get_presence = AsyncMock(return_value=mock_presence)
+        server._client = mock_client
+
+        result = await server.coord_get_presence()
+
+        assert result["success"] is True
+        assert "backend" in result["instances"]
+        # Stale flag should be present in the response
+        assert "stale" in result["instances"]["backend"]
+
+    @pytest.mark.asyncio
+    async def test_get_presence_active_session_not_stale(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test active session with recent heartbeat is not marked stale."""
+        # Recent heartbeat (within last minute)
+        recent_time = datetime.now(timezone.utc)
+        mock_presence = {
+            "backend": PresenceInfo(
+                instance_id="backend",
+                active=True,
+                last_heartbeat=recent_time,
+            ),
+        }
+        mock_client.get_presence = AsyncMock(return_value=mock_presence)
+        server._client = mock_client
+
+        result = await server.coord_get_presence()
+
+        assert result["success"] is True
+        assert result["instances"]["backend"]["stale"] is False
+
+    @pytest.mark.asyncio
+    async def test_get_presence_stale_session_detected(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test session with old heartbeat (>5 minutes) is marked stale."""
+        from datetime import timedelta
+
+        # Old heartbeat (6 minutes ago)
+        old_time = datetime.now(timezone.utc) - timedelta(minutes=6)
+        mock_presence = {
+            "frontend": PresenceInfo(
+                instance_id="frontend",
+                active=True,
+                last_heartbeat=old_time,
+            ),
+        }
+        mock_client.get_presence = AsyncMock(return_value=mock_presence)
+        server._client = mock_client
+
+        result = await server.coord_get_presence()
+
+        assert result["success"] is True
+        assert result["instances"]["frontend"]["stale"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_presence_includes_time_since_heartbeat(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test get_presence includes seconds since last heartbeat."""
+        from datetime import timedelta
+
+        # Heartbeat 2 minutes ago
+        two_min_ago = datetime.now(timezone.utc) - timedelta(minutes=2)
+        mock_presence = {
+            "orchestrator": PresenceInfo(
+                instance_id="orchestrator",
+                active=True,
+                last_heartbeat=two_min_ago,
+            ),
+        }
+        mock_client.get_presence = AsyncMock(return_value=mock_presence)
+        server._client = mock_client
+
+        result = await server.coord_get_presence()
+
+        assert result["success"] is True
+        assert "seconds_since_heartbeat" in result["instances"]["orchestrator"]
+        # Should be approximately 120 seconds (allow some margin)
+        seconds = result["instances"]["orchestrator"]["seconds_since_heartbeat"]
+        assert 110 <= seconds <= 130
+
+    @pytest.mark.asyncio
+    async def test_get_presence_boundary_exactly_five_minutes(
+        self,
+        server: CoordinationMCPServer,
+        mock_client: AsyncMock,
+    ) -> None:
+        """Test boundary case: exactly 5 minutes is considered stale."""
+        from datetime import timedelta
+
+        # Exactly 5 minutes ago (300 seconds)
+        five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+        mock_presence = {
+            "devops": PresenceInfo(
+                instance_id="devops",
+                active=True,
+                last_heartbeat=five_min_ago,
+            ),
+        }
+        mock_client.get_presence = AsyncMock(return_value=mock_presence)
+        server._client = mock_client
+
+        result = await server.coord_get_presence()
+
+        assert result["success"] is True
+        # Exactly 5 minutes should be considered stale (>= 300 seconds)
+        assert result["instances"]["devops"]["stale"] is True
+
+
+class TestPresenceManagementSchemas:
+    """Tests for presence management tool schema definitions."""
+
+    @pytest.fixture
+    def server(self) -> CoordinationMCPServer:
+        """Create test server."""
+        with patch.dict("os.environ", {"CLAUDE_INSTANCE_ID": "test-instance"}):
+            return CoordinationMCPServer()
+
+    def test_schemas_include_presence_tools(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test that tool schemas include all presence management tools."""
+        schemas = server.get_tool_schemas()
+        tool_names = [s["name"] for s in schemas]
+
+        assert "coord_register_presence" in tool_names
+        assert "coord_deregister_presence" in tool_names
+        assert "coord_heartbeat" in tool_names
+
+    def test_register_presence_schema(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test register_presence schema has correct structure."""
+        schemas = server.get_tool_schemas()
+        schema = next(s for s in schemas if s["name"] == "coord_register_presence")
+
+        assert "role" in schema["inputSchema"]["required"]
+        assert "worktree_path" in schema["inputSchema"]["properties"]
+        assert "session_id" in schema["inputSchema"]["properties"]
+
+    def test_deregister_presence_schema(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test deregister_presence schema has correct structure."""
+        schemas = server.get_tool_schemas()
+        schema = next(s for s in schemas if s["name"] == "coord_deregister_presence")
+
+        assert "role" in schema["inputSchema"]["required"]
+
+    def test_heartbeat_schema(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test heartbeat schema has correct structure."""
+        schemas = server.get_tool_schemas()
+        schema = next(s for s in schemas if s["name"] == "coord_heartbeat")
+
+        assert "role" in schema["inputSchema"]["required"]
+
+
+class TestPresenceManagementRequestHandling:
+    """Tests for presence management request handling in MCP protocol."""
+
+    @pytest.fixture
+    def server(self) -> CoordinationMCPServer:
+        """Create test server."""
+        with patch.dict("os.environ", {"CLAUDE_INSTANCE_ID": "test-instance"}):
+            return CoordinationMCPServer()
+
+    @pytest.mark.asyncio
+    async def test_handle_register_presence_call(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test handling tools/call for register_presence."""
+        mock_client = AsyncMock()
+        mock_client.register_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "tools/call",
+            "params": {
+                "name": "coord_register_presence",
+                "arguments": {
+                    "role": "backend",
+                    "worktree_path": "/path/to/worktree",
+                },
+            },
+        }
+
+        response = await server.handle_request(request)
+
+        assert response["id"] == 10
+        assert "result" in response
+        assert response["result"]["content"][0]["type"] == "text"
+
+    @pytest.mark.asyncio
+    async def test_handle_deregister_presence_call(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test handling tools/call for deregister_presence."""
+        mock_client = AsyncMock()
+        mock_client.unregister_instance = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 11,
+            "method": "tools/call",
+            "params": {
+                "name": "coord_deregister_presence",
+                "arguments": {
+                    "role": "backend",
+                },
+            },
+        }
+
+        response = await server.handle_request(request)
+
+        assert response["id"] == 11
+        assert "result" in response
+
+    @pytest.mark.asyncio
+    async def test_handle_heartbeat_call(
+        self,
+        server: CoordinationMCPServer,
+    ) -> None:
+        """Test handling tools/call for heartbeat."""
+        mock_client = AsyncMock()
+        mock_client.heartbeat = AsyncMock(return_value=None)
+        server._client = mock_client
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 12,
+            "method": "tools/call",
+            "params": {
+                "name": "coord_heartbeat",
+                "arguments": {
+                    "role": "frontend",
+                },
+            },
+        }
+
+        response = await server.handle_request(request)
+
+        assert response["id"] == 12
+        assert "result" in response

@@ -164,6 +164,136 @@ MCP servers connect to localhost services exposed by Docker Compose or K8s port-
 ./scripts/k8s/port-forward-mcp.sh all  # ES, Redis, HITL UI
 ```
 
+## Multi-Session Infrastructure
+
+The project supports running multiple Claude CLI sessions in parallel, each in an isolated git worktree with a unique identity.
+
+### Quick Start
+
+To start an agent session in a separate terminal:
+
+```bash
+# Start backend agent session
+./scripts/start-agent-session.sh backend
+
+# Follow the printed instructions:
+cd .worktrees/backend && export CLAUDE_INSTANCE_ID=backend && claude
+```
+
+### Worktree Commands
+
+| Command | Purpose |
+|---------|---------|
+| `./scripts/start-agent-session.sh <role>` | Complete setup for an agent session |
+| `./scripts/worktree/setup-agent.sh <role>` | Create worktree and branch |
+| `./scripts/worktree/list-agents.sh` | List all agent worktrees (JSON) |
+| `./scripts/worktree/teardown-agent.sh <role> [--merge\|--abandon]` | Remove worktree |
+| `./scripts/worktree/merge-agent.sh <role>` | Merge agent branch to main |
+
+Valid roles: `backend`, `frontend`, `orchestrator`, `devops`
+
+### Session Lifecycle
+
+```
+1. Setup     -> ./scripts/start-agent-session.sh <role>
+               - Creates worktree at .worktrees/<role>/
+               - Creates branch agent/<role>/active
+               - Configures git identity
+
+2. Work      -> cd .worktrees/<role> && export CLAUDE_INSTANCE_ID=<role> && claude
+               - Session validates identity on startup
+               - Registers presence in Redis
+               - Checks for pending notifications
+
+3. Commit    -> Work is committed to agent/<role>/active branch
+               - Isolated from main and other agents
+
+4. Merge     -> ./scripts/worktree/merge-agent.sh <role>
+               - Merges agent branch to main
+               - Fast-forward preferred
+
+5. Teardown  -> ./scripts/worktree/teardown-agent.sh <role> --merge
+               - Deregisters session presence
+               - Removes worktree
+               - Optionally merges changes first
+```
+
+### Session Identity
+
+Each agent session has a unique identity:
+
+| Role | Git Email | CLAUDE_INSTANCE_ID |
+|------|-----------|-------------------|
+| backend | claude-backend@asdlc.local | backend |
+| frontend | claude-frontend@asdlc.local | frontend |
+| orchestrator | claude-orchestrator@asdlc.local | orchestrator |
+| devops | claude-devops@asdlc.local | devops |
+| pm | (main repo email) | pm |
+
+Identity is resolved from:
+1. `CLAUDE_INSTANCE_ID` environment variable (preferred)
+2. `git config user.email` (fallback)
+
+### Presence Tracking
+
+Sessions register their presence in Redis for coordination:
+- **Heartbeat**: Sessions should heartbeat every 60 seconds
+- **Stale Threshold**: 5 minutes without heartbeat marks session stale
+- **Startup**: Session presence registered automatically
+- **Shutdown**: Presence deregistered on worktree teardown
+
+Check presence with the coordination MCP:
+```
+coord_get_presence
+```
+
+### Troubleshooting
+
+**Session identity not recognized:**
+```bash
+# Set identity explicitly
+export CLAUDE_INSTANCE_ID=backend
+
+# Or configure git email
+git config user.email claude-backend@asdlc.local
+```
+
+**Worktree already exists:**
+```bash
+# Script is idempotent - safe to run again
+./scripts/worktree/setup-agent.sh backend
+```
+
+**Uncommitted changes in worktree:**
+```bash
+# Merge changes to main before removing
+./scripts/worktree/teardown-agent.sh backend --merge
+
+# Or abandon changes
+./scripts/worktree/teardown-agent.sh backend --abandon
+```
+
+**Redis not available:**
+- Sessions can start without Redis (warnings only)
+- Coordination features will be limited
+- Presence tracking disabled
+
+**Merge conflicts:**
+```bash
+# merge-agent.sh will report conflicts
+./scripts/worktree/merge-agent.sh backend
+
+# Resolve manually in main repo, then teardown
+cd /path/to/main/repo
+git status  # see conflicts
+# ... resolve conflicts ...
+git add <files>
+git commit
+
+# Then teardown worktree
+./scripts/worktree/teardown-agent.sh backend --abandon
+```
+
 ## Related Docs
 
 - @docs/environments/README.md - Environment tiers
