@@ -327,9 +327,9 @@ Get presence status of all agents.
 **Returns:**
 ```json
 {
-  "agents": [
+  "instances": [
     {
-      "agent_id": "backend",
+      "instance_id": "p11-guardrails",
       "status": "active",
       "last_heartbeat": "2025-01-21T10:30:00Z"
     }

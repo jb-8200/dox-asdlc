@@ -41,7 +41,7 @@ class CoordinationMCPServer:
 
         Raises:
             RuntimeError: If instance identity cannot be determined from
-                CLAUDE_INSTANCE_ID environment variable or git user.email.
+                CLAUDE_INSTANCE_ID environment variable.
         """
         self._client: CoordinationClient | None = None
         self._config = CoordinationConfig.from_env()
@@ -154,7 +154,7 @@ class CoordinationMCPServer:
             return {
                 "success": False,
                 "error": "Invalid sender identity. Cannot publish messages with unknown sender.",
-                "hint": "Set CLAUDE_INSTANCE_ID or configure git user.email",
+                "hint": "Set CLAUDE_INSTANCE_ID environment variable",
             }
 
         try:
@@ -395,7 +395,7 @@ class CoordinationMCPServer:
         This should be called at session startup.
 
         Args:
-            role: The role/instance ID to register (e.g., "backend", "frontend")
+            role: The context/instance ID to register (e.g., "p11-guardrails", "pm")
             worktree_path: Optional path to the git worktree for this session
             session_id: Optional unique session identifier
 
@@ -405,9 +405,9 @@ class CoordinationMCPServer:
         Example response:
             {
                 "success": true,
-                "role": "backend",
+                "role": "p11-guardrails",
                 "registered_at": "2026-02-05T10:00:00Z",
-                "worktree_path": "/path/to/.worktrees/backend",
+                "worktree_path": "/path/to/.worktrees/p11-guardrails",
                 "session_id": "session-abc123"
             }
         """
@@ -448,7 +448,7 @@ class CoordinationMCPServer:
         when a session is ending gracefully.
 
         Args:
-            role: The role/instance ID to deregister
+            role: The context/instance ID to deregister
 
         Returns:
             Dict with success status
@@ -456,7 +456,7 @@ class CoordinationMCPServer:
         Example response:
             {
                 "success": true,
-                "role": "backend"
+                "role": "p11-guardrails"
             }
         """
         try:
@@ -487,7 +487,7 @@ class CoordinationMCPServer:
         be fast (<100ms).
 
         Args:
-            role: The role/instance ID to heartbeat
+            role: The context/instance ID to heartbeat
 
         Returns:
             Dict with success status and new heartbeat timestamp
@@ -495,7 +495,7 @@ class CoordinationMCPServer:
         Example response:
             {
                 "success": true,
-                "role": "backend",
+                "role": "p11-guardrails",
                 "last_heartbeat": "2026-02-05T10:00:00Z"
             }
         """
@@ -690,7 +690,7 @@ class CoordinationMCPServer:
                     "properties": {
                         "role": {
                             "type": "string",
-                            "description": "Role/instance ID to register (e.g., backend, frontend)",
+                            "description": "Context/instance ID to register (e.g., p11-guardrails, pm)",
                         },
                         "worktree_path": {
                             "type": "string",
@@ -712,7 +712,7 @@ class CoordinationMCPServer:
                     "properties": {
                         "role": {
                             "type": "string",
-                            "description": "Role/instance ID to deregister",
+                            "description": "Context/instance ID to deregister",
                         },
                     },
                     "required": ["role"],
@@ -726,7 +726,7 @@ class CoordinationMCPServer:
                     "properties": {
                         "role": {
                             "type": "string",
-                            "description": "Role/instance ID to heartbeat",
+                            "description": "Context/instance ID to heartbeat",
                         },
                     },
                     "required": ["role"],
