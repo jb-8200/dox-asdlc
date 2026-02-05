@@ -39,6 +39,7 @@ from src.orchestrator.routes.swarm import (
     get_reviewer_registry,
     get_swarm_session_manager,
     get_swarm_dispatcher,
+    get_swarm_redis_store,
     _active_swarms,
 )
 
@@ -181,6 +182,7 @@ def app(
     app.dependency_overrides[get_reviewer_registry] = lambda: default_registry
     app.dependency_overrides[get_swarm_session_manager] = lambda: mock_session_manager
     app.dependency_overrides[get_swarm_dispatcher] = lambda: mock_dispatcher
+    app.dependency_overrides[get_swarm_redis_store] = lambda: None
 
     return app
 
@@ -402,7 +404,7 @@ class TestGetSwarmStatusEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["swarm_id"] == "swarm-pending"
-        assert data["status"] == "PENDING"
+        assert data["status"] == "pending"
 
     def test_get_in_progress_status(
         self,
@@ -425,7 +427,7 @@ class TestGetSwarmStatusEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "IN_PROGRESS"
+        assert data["status"] == "in_progress"
         assert "security" in data["reviewers"]
         assert data["reviewers"]["security"]["status"] == "success"
 
@@ -453,7 +455,7 @@ class TestGetSwarmStatusEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "COMPLETE"
+        assert data["status"] == "complete"
         assert data["unified_report"] is not None
         assert data["unified_report"]["total_findings"] == 3
 
@@ -740,7 +742,7 @@ class TestFullPollingFlow:
 
         response = client.get(poll_url)
         assert response.status_code == 200
-        assert response.json()["status"] == "IN_PROGRESS"
+        assert response.json()["status"] == "in_progress"
 
         # 3. Second poll - complete
         complete_session = make_test_session(
@@ -757,7 +759,7 @@ class TestFullPollingFlow:
         response = client.get(poll_url)
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "COMPLETE"
+        assert data["status"] == "complete"
         assert data["unified_report"] is not None
         assert data["unified_report"]["total_findings"] == 3
 

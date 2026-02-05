@@ -38,11 +38,11 @@ class SwarmStatus(str, Enum):
                           |-> FAILED
     """
 
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    AGGREGATING = "AGGREGATING"
-    COMPLETE = "COMPLETE"
-    FAILED = "FAILED"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    AGGREGATING = "aggregating"
+    COMPLETE = "complete"
+    FAILED = "failed"
 
 
 class ReviewFinding(BaseModel):

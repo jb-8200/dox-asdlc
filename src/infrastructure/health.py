@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -93,6 +94,8 @@ class HealthChecker:
         """
         self.service_name = service_name
         self._start_time = datetime.utcnow()
+        self._redis_healthy: bool = False
+        self._redis_health_lock: threading.Lock = threading.Lock()
 
     @property
     def uptime_seconds(self) -> float:
@@ -228,25 +231,66 @@ class HealthChecker:
             dependencies=dependencies,
         )
 
-    def check_redis_sync(self) -> bool:
-        """Synchronously check if Redis is healthy.
+    async def update_redis_health_cache(self) -> None:
+        """Update the cached Redis health status.
 
-        Used by Prometheus collectors that need synchronous access.
-
-        Returns:
-            bool: True if Redis is healthy, False otherwise.
+        Called periodically from the async main loop to keep the
+        thread-safe cached value current. This avoids the need to
+        create a new event loop from synchronous contexts.
         """
         try:
-            # Run the async health check in a new event loop
-            loop = asyncio.new_event_loop()
-            try:
-                health = loop.run_until_complete(check_redis_health())
-                return health.get("status") == "healthy"
-            finally:
-                loop.close()
-        except Exception as e:
-            logger.warning(f"Redis sync health check failed: {e}")
-            return False
+            health = await check_redis_health()
+            is_healthy = health.get("status") == "healthy"
+        except Exception:
+            is_healthy = False
+
+        with self._redis_health_lock:
+            self._redis_healthy = is_healthy
+
+    def check_redis_sync(self) -> bool:
+        """Synchronously check if Redis is healthy using cached state.
+
+        Thread-safe method that reads the last known Redis health status.
+        The cache is updated by update_redis_health_cache() which runs
+        in the main async event loop. This avoids creating a new event
+        loop from synchronous contexts such as Prometheus collector threads.
+
+        Returns:
+            bool: True if Redis was healthy at last check, False otherwise.
+        """
+        with self._redis_health_lock:
+            return self._redis_healthy
+
+    def get_cached_health_response(self) -> HealthResponse:
+        """Get a health response using cached dependency state.
+
+        Thread-safe synchronous method for use in threaded HTTP handlers
+        that cannot call async methods. Returns a HealthResponse based on
+        the last known Redis health status.
+
+        Returns:
+            HealthResponse: Health response with cached dependency status.
+        """
+        redis_healthy = self.check_redis_sync()
+        redis_status = (
+            HealthStatus.HEALTHY if redis_healthy else HealthStatus.UNHEALTHY
+        )
+        overall_status = (
+            HealthStatus.HEALTHY if redis_healthy else HealthStatus.UNHEALTHY
+        )
+
+        return HealthResponse(
+            status=overall_status,
+            service=self.service_name,
+            timestamp=datetime.utcnow().isoformat(),
+            uptime_seconds=round(self.uptime_seconds, 2),
+            dependencies=[
+                DependencyHealth(
+                    name="redis",
+                    status=redis_status,
+                ),
+            ],
+        )
 
     async def check_liveness(self) -> HealthResponse:
         """Perform basic liveness check.

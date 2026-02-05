@@ -217,7 +217,7 @@ class TestGetSession:
             "id": "swarm-abc12345",
             "target_path": "src/workers/",
             "reviewers": '["security", "performance"]',
-            "status": "IN_PROGRESS",
+            "status": "in_progress",
             "created_at": "2026-01-20T12:00:00+00:00",
             "completed_at": "",
             "results": "{}",
@@ -264,7 +264,7 @@ class TestUpdateStatus:
         mock_redis.hset.assert_called_with(
             "test_swarm:session:swarm-abc12345",
             "status",
-            "IN_PROGRESS",
+            "in_progress",
         )
 
     @pytest.mark.asyncio
@@ -285,7 +285,7 @@ class TestUpdateStatus:
         # Should update both status and completed_at
         calls = mock_redis.hset.call_args_list
         # Check that status was set
-        assert any("COMPLETE" in str(call) for call in calls)
+        assert any("complete" in str(call) for call in calls)
 
     @pytest.mark.asyncio
     async def test_update_status_to_failed(
@@ -302,7 +302,7 @@ class TestUpdateStatus:
         mock_redis.hset.assert_called_with(
             "test_swarm:session:swarm-abc12345",
             "status",
-            "FAILED",
+            "failed",
         )
 
     @pytest.mark.asyncio
@@ -320,7 +320,7 @@ class TestUpdateStatus:
         mock_redis.hset.assert_called_with(
             "test_swarm:session:swarm-abc12345",
             "status",
-            "AGGREGATING",
+            "aggregating",
         )
 
     @pytest.mark.asyncio

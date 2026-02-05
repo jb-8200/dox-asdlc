@@ -35,6 +35,7 @@ export function ReviewProgressPanel({
   const estimatedCost = useReviewStore((state) => state.estimatedCost);
   const updateProgress = useReviewStore((state) => state.updateProgress);
   const addCLIEntry = useReviewStore((state) => state.addCLIEntry);
+  const setResults = useReviewStore((state) => state.setResults);
 
   // Track previous status for each reviewer to detect changes
   const previousStatusRef = useRef<Record<string, ReviewerStatus['status']>>({});
@@ -95,9 +96,15 @@ export function ReviewProgressPanel({
       (status?.status === 'complete' || status?.status === 'failed')
     ) {
       hasCalledOnComplete.current = true;
+
+      // Store the unified report results before transitioning
+      if (status?.unified_report) {
+        setResults(status.unified_report);
+      }
+
       onComplete();
     }
-  }, [status, updateProgress, addCLIEntry, onComplete]);
+  }, [status, updateProgress, addCLIEntry, setResults, onComplete]);
 
   // Update store when status changes
   useEffect(() => {

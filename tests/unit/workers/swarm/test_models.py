@@ -49,17 +49,17 @@ class TestSwarmStatus:
 
     def test_all_statuses_defined(self) -> None:
         """Test that all swarm statuses are defined."""
-        expected = {"PENDING", "IN_PROGRESS", "AGGREGATING", "COMPLETE", "FAILED"}
+        expected = {"pending", "in_progress", "aggregating", "complete", "failed"}
         actual = {s.value for s in SwarmStatus}
         assert actual == expected
 
     def test_swarm_status_is_string_enum(self) -> None:
         """Test that SwarmStatus values are strings."""
-        assert SwarmStatus.PENDING.value == "PENDING"
-        assert SwarmStatus.IN_PROGRESS.value == "IN_PROGRESS"
-        assert SwarmStatus.AGGREGATING.value == "AGGREGATING"
-        assert SwarmStatus.COMPLETE.value == "COMPLETE"
-        assert SwarmStatus.FAILED.value == "FAILED"
+        assert SwarmStatus.PENDING.value == "pending"
+        assert SwarmStatus.IN_PROGRESS.value == "in_progress"
+        assert SwarmStatus.AGGREGATING.value == "aggregating"
+        assert SwarmStatus.COMPLETE.value == "complete"
+        assert SwarmStatus.FAILED.value == "failed"
 
 
 class TestReviewFinding:
@@ -591,7 +591,7 @@ class TestSwarmSession:
 
         assert data["id"] == "swarm-dict"
         assert data["target_path"] == "src/test/"
-        assert data["status"] == "PENDING"
+        assert data["status"] == "pending"
         assert len(data["reviewers"]) == 2
 
     def test_swarm_session_from_dict(self) -> None:
@@ -600,7 +600,7 @@ class TestSwarmSession:
             "id": "swarm-fromdict",
             "target_path": "src/api/",
             "reviewers": ["security"],
-            "status": "IN_PROGRESS",
+            "status": "in_progress",
             "created_at": "2026-01-20T12:00:00Z",
             "completed_at": None,
             "results": {},

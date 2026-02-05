@@ -12,6 +12,7 @@ import {
   ReviewProgressPanel,
   ReviewResultsPanel,
   GitHubIssueModal,
+  ReviewBackendToggle,
 } from '../components/review';
 import { downloadMarkdownReport, exportToPDF } from '../utils/reportExport';
 import { copyFindingToClipboard } from '../utils/clipboardUtils';
@@ -127,24 +128,27 @@ export function CodeReviewPage() {
       {/* Header */}
       <header className="border-b border-border-primary bg-bg-secondary">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            {phase !== 'input' && (
-              <button
-                onClick={handleReset}
-                className="p-2 rounded hover:bg-bg-tertiary text-text-secondary"
-                title="Start new review"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-              </button>
-            )}
-            <div>
-              <h1 className="text-xl font-bold text-text-primary">Code Review</h1>
-              <p className="text-sm text-text-tertiary">
-                {phase === 'input' && 'Configure and start a parallel code review'}
-                {phase === 'progress' && 'Review in progress...'}
-                {phase === 'results' && `Results for ${currentSwarmId}`}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {phase !== 'input' && (
+                <button
+                  onClick={handleReset}
+                  className="p-2 rounded hover:bg-bg-tertiary text-text-secondary"
+                  title="Start new review"
+                >
+                  <ArrowLeftIcon className="h-5 w-5" />
+                </button>
+              )}
+              <div>
+                <h1 className="text-xl font-bold text-text-primary">Code Review</h1>
+                <p className="text-sm text-text-tertiary">
+                  {phase === 'input' && 'Configure and start a parallel code review'}
+                  {phase === 'progress' && 'Review in progress...'}
+                  {phase === 'results' && `Results for ${currentSwarmId}`}
+                </p>
+              </div>
             </div>
+            <ReviewBackendToggle />
           </div>
         </div>
       </header>

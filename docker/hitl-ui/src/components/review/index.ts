@@ -58,5 +58,9 @@ export { default as BulkActionsBarDefault } from './BulkActionsBar';
 // GitHub Integration (Phase 5)
 export { GitHubIssueModal } from './GitHubIssueModal';
 
+// Backend Toggle
+export { ReviewBackendToggle } from './ReviewBackendToggle';
+export { default as ReviewBackendToggleDefault } from './ReviewBackendToggle';
+
 // Utilities
 export { validatePath } from './pathValidation';

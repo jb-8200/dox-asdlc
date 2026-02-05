@@ -6,9 +6,10 @@ Tests health status generation and response formatting.
 from __future__ import annotations
 
 import os
+import threading
 from datetime import datetime
 from http import HTTPStatus
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -238,6 +239,162 @@ class TestHealthChecker:
 
         assert response.status == HealthStatus.HEALTHY
         assert response.dependencies == []
+
+
+class TestCachedRedisHealth:
+    """Tests for the cached Redis health check pattern.
+
+    Verifies that check_redis_sync reads a cached value instead of
+    creating a new event loop, preventing async/sync conflicts when
+    called from Prometheus collector threads.
+    """
+
+    def test_check_redis_sync_defaults_to_false(self) -> None:
+        """check_redis_sync should return False before cache is populated."""
+        checker = HealthChecker("test-service")
+        assert checker.check_redis_sync() is False
+
+    def test_check_redis_sync_returns_true_after_healthy_update(self) -> None:
+        """check_redis_sync should return True after healthy cache update."""
+        checker = HealthChecker("test-service")
+        # Directly set the cached value to simulate async update
+        with checker._redis_health_lock:
+            checker._redis_healthy = True
+        assert checker.check_redis_sync() is True
+
+    def test_check_redis_sync_returns_false_after_unhealthy_update(self) -> None:
+        """check_redis_sync should return False after unhealthy cache update."""
+        checker = HealthChecker("test-service")
+        with checker._redis_health_lock:
+            checker._redis_healthy = True
+        # Then update to unhealthy
+        with checker._redis_health_lock:
+            checker._redis_healthy = False
+        assert checker.check_redis_sync() is False
+
+    @pytest.mark.asyncio
+    async def test_update_redis_health_cache_sets_true_when_healthy(self) -> None:
+        """update_redis_health_cache should set cached value to True on healthy."""
+        checker = HealthChecker("test-service")
+
+        with patch(
+            "src.infrastructure.health.check_redis_health"
+        ) as mock_check:
+            mock_check.return_value = {
+                "status": "healthy",
+                "host": "localhost",
+                "port": 6379,
+            }
+
+            await checker.update_redis_health_cache()
+
+            assert checker.check_redis_sync() is True
+
+    @pytest.mark.asyncio
+    async def test_update_redis_health_cache_sets_false_when_unhealthy(self) -> None:
+        """update_redis_health_cache should set cached value to False on unhealthy."""
+        checker = HealthChecker("test-service")
+        # Pre-set to healthy
+        with checker._redis_health_lock:
+            checker._redis_healthy = True
+
+        with patch(
+            "src.infrastructure.health.check_redis_health"
+        ) as mock_check:
+            mock_check.return_value = {
+                "status": "unhealthy",
+                "error": "Connection refused",
+            }
+
+            await checker.update_redis_health_cache()
+
+            assert checker.check_redis_sync() is False
+
+    @pytest.mark.asyncio
+    async def test_update_redis_health_cache_sets_false_on_exception(self) -> None:
+        """update_redis_health_cache should set cached value to False on exception."""
+        checker = HealthChecker("test-service")
+        # Pre-set to healthy
+        with checker._redis_health_lock:
+            checker._redis_healthy = True
+
+        with patch(
+            "src.infrastructure.health.check_redis_health"
+        ) as mock_check:
+            mock_check.side_effect = ConnectionError("Redis down")
+
+            await checker.update_redis_health_cache()
+
+            assert checker.check_redis_sync() is False
+
+    def test_check_redis_sync_is_thread_safe(self) -> None:
+        """check_redis_sync should be safe to call from multiple threads."""
+        checker = HealthChecker("test-service")
+        results: list[bool] = []
+
+        def read_health() -> None:
+            for _ in range(100):
+                results.append(checker.check_redis_sync())
+
+        def write_health() -> None:
+            for i in range(100):
+                with checker._redis_health_lock:
+                    checker._redis_healthy = (i % 2 == 0)
+
+        threads = [
+            threading.Thread(target=read_health),
+            threading.Thread(target=read_health),
+            threading.Thread(target=write_health),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All results should be booleans, no crashes
+        assert all(isinstance(r, bool) for r in results)
+
+    def test_check_redis_sync_does_not_create_event_loop(self) -> None:
+        """check_redis_sync must not call asyncio.new_event_loop."""
+        checker = HealthChecker("test-service")
+
+        with patch("asyncio.new_event_loop") as mock_new_loop:
+            checker.check_redis_sync()
+            mock_new_loop.assert_not_called()
+
+    def test_health_checker_has_redis_health_lock(self) -> None:
+        """HealthChecker should have a threading.Lock for Redis health."""
+        checker = HealthChecker("test-service")
+        assert hasattr(checker, "_redis_health_lock")
+        assert isinstance(checker._redis_health_lock, type(threading.Lock()))
+
+    @pytest.mark.asyncio
+    async def test_get_cached_health_response_returns_health_response(self) -> None:
+        """get_cached_health_response should return a HealthResponse object."""
+        checker = HealthChecker("test-service")
+        response = checker.get_cached_health_response()
+        assert isinstance(response, HealthResponse)
+        assert response.service == "test-service"
+
+    @pytest.mark.asyncio
+    async def test_get_cached_health_response_healthy(self) -> None:
+        """get_cached_health_response should reflect cached healthy state."""
+        checker = HealthChecker("test-service")
+        with checker._redis_health_lock:
+            checker._redis_healthy = True
+
+        response = checker.get_cached_health_response()
+        assert response.status == HealthStatus.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_get_cached_health_response_unhealthy(self) -> None:
+        """get_cached_health_response should reflect cached unhealthy state."""
+        checker = HealthChecker("test-service")
+        with checker._redis_health_lock:
+            checker._redis_healthy = False
+
+        response = checker.get_cached_health_response()
+        assert response.status == HealthStatus.UNHEALTHY
 
 
 class TestGetHealthChecker:

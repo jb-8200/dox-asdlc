@@ -7,8 +7,8 @@
 
 import { useMutation, useQuery, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
 import { apiClient } from './client';
-import { areMocksEnabled } from './mocks/index';
 import { mockTriggerSwarmReview, mockFetchSwarmStatus } from './mocks/swarm';
+import { shouldUseMocks } from '../stores/reviewStore';
 import type {
   SwarmReviewRequest,
   SwarmReviewResponse,
@@ -34,7 +34,7 @@ export const swarmKeys = {
 export async function triggerSwarmReview(
   request: SwarmReviewRequest
 ): Promise<SwarmReviewResponse> {
-  if (areMocksEnabled()) {
+  if (shouldUseMocks()) {
     return mockTriggerSwarmReview(request);
   }
 
@@ -51,7 +51,7 @@ export async function triggerSwarmReview(
 export async function fetchSwarmStatus(
   swarmId: string
 ): Promise<SwarmStatusResponse> {
-  if (areMocksEnabled()) {
+  if (shouldUseMocks()) {
     return mockFetchSwarmStatus(swarmId);
   }
 

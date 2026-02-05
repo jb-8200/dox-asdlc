@@ -687,6 +687,72 @@ describe('ReviewProgressPanel', () => {
       });
     });
 
+    it('stores unified_report in review store on completion', async () => {
+      const mockReport = {
+        swarm_id: 'test-swarm',
+        target_path: 'src/',
+        created_at: '2025-01-01T00:00:00Z',
+        reviewers_completed: ['security'],
+        reviewers_failed: [],
+        critical_findings: [],
+        high_findings: [{
+          id: 'finding-1',
+          reviewer_type: 'security',
+          severity: 'high',
+          category: 'security/xss',
+          title: 'XSS Vulnerability',
+          description: 'Test finding',
+          file_path: 'src/test.ts',
+          line_start: 10,
+          line_end: 10,
+          code_snippet: 'code',
+          recommendation: 'Fix it',
+          confidence: 0.9,
+        }],
+        medium_findings: [],
+        low_findings: [],
+        info_findings: [],
+        total_findings: 1,
+        findings_by_reviewer: { security: 1 },
+        findings_by_category: { 'security/xss': 1 },
+        duplicates_removed: 0,
+      };
+
+      mockUseSwarmStatus.mockReturnValue({
+        data: {
+          swarm_id: 'test-swarm',
+          status: 'complete',
+          reviewers: {
+            security: {
+              status: 'complete',
+              files_reviewed: 10,
+              findings_count: 1,
+              progress_percent: 100,
+              duration_seconds: 5.5,
+            },
+          },
+          unified_report: mockReport,
+        },
+        isLoading: false,
+        error: null,
+      });
+
+      await act(async () => {
+        render(
+          <ReviewProgressPanel swarmId="test-swarm" onComplete={mockOnComplete} />,
+          { wrapper: createWrapper() }
+        );
+      });
+
+      await waitFor(() => {
+        const state = useReviewStore.getState();
+        expect(state.results).not.toBeNull();
+        expect(state.results?.swarm_id).toBe('test-swarm');
+        expect(state.results?.total_findings).toBe(1);
+        expect(state.results?.high_findings).toHaveLength(1);
+      });
+    });
+
     it('calls onComplete when status is failed', async () => {
       mockUseSwarmStatus.mockReturnValue({
         data: {

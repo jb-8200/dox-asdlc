@@ -76,33 +76,41 @@ class HealthHandler(BaseHTTPRequestHandler):
             self._send_json_response({"error": "Not Found"}, 404)
 
     def _handle_health(self) -> None:
-        """Handle /health endpoint."""
-        loop = asyncio.new_event_loop()
-        try:
-            response = loop.run_until_complete(self.health_checker.check_health())
-            self._send_json_response(response.to_dict(), response.http_status_code())
-        finally:
-            loop.close()
+        """Handle /health endpoint using cached health state.
+
+        Uses get_cached_health_response() instead of creating a new event
+        loop, which would conflict with the main async loop's Redis client.
+        """
+        response = self.health_checker.get_cached_health_response()
+        self._send_json_response(response.to_dict(), response.http_status_code())
 
     def _handle_liveness(self) -> None:
-        """Handle /health/live endpoint."""
-        loop = asyncio.new_event_loop()
-        try:
-            response = loop.run_until_complete(self.health_checker.check_liveness())
-            self._send_json_response(response.to_dict(), response.http_status_code())
-        finally:
-            loop.close()
+        """Handle /health/live endpoint.
+
+        Liveness only checks that the process is running, no async
+        dependencies needed. Returns a simple healthy response.
+        """
+        from datetime import datetime as dt
+
+        from src.infrastructure.health import HealthResponse, HealthStatus
+
+        response = HealthResponse(
+            status=HealthStatus.HEALTHY,
+            service=self.health_checker.service_name,
+            timestamp=dt.utcnow().isoformat(),
+            uptime_seconds=round(self.health_checker.uptime_seconds, 2),
+            dependencies=[],
+        )
+        self._send_json_response(response.to_dict(), response.http_status_code())
 
     def _handle_readiness(self) -> None:
-        """Handle /health/ready endpoint."""
-        loop = asyncio.new_event_loop()
-        try:
-            response = loop.run_until_complete(
-                self.health_checker.check_health(include_dependencies=True)
-            )
-            self._send_json_response(response.to_dict(), response.http_status_code())
-        finally:
-            loop.close()
+        """Handle /health/ready endpoint using cached health state.
+
+        Uses get_cached_health_response() instead of creating a new event
+        loop, which would conflict with the main async loop's Redis client.
+        """
+        response = self.health_checker.get_cached_health_response()
+        self._send_json_response(response.to_dict(), response.http_status_code())
 
     def _handle_metrics(self) -> None:
         """Handle /metrics endpoint for Prometheus scraping."""
@@ -201,6 +209,30 @@ async def run_fastapi_server(app: Any, host: str, port: int) -> None:
     await server.serve()
 
 
+async def _run_health_cache_updater(
+    health_checker: HealthChecker,
+    interval: float = 10.0,
+) -> None:
+    """Periodically update the cached Redis health status.
+
+    Runs in the main async event loop so it can safely use the async
+    Redis client. The cached value is then read by synchronous code
+    in the threaded health HTTP server and Prometheus collectors.
+
+    Args:
+        health_checker: The health checker whose cache to update.
+        interval: Seconds between updates.
+    """
+    while True:
+        try:
+            await health_checker.update_redis_health_cache()
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning(f"Health cache update failed: {e}")
+        await asyncio.sleep(interval)
+
+
 async def async_main() -> None:
     """Async main function that runs the review swarm service."""
     global _health_server, _shutdown_event
@@ -267,12 +299,24 @@ async def async_main() -> None:
     # Create shutdown event
     _shutdown_event = asyncio.Event()
 
+    # Start periodic health cache updater in the async event loop
+    health_cache_task = asyncio.create_task(
+        _run_health_cache_updater(health_checker)
+    )
+    logger.info("Health cache updater started (10s interval)")
+
     # Run FastAPI server
     try:
         await run_fastapi_server(app, host, api_port)
     except asyncio.CancelledError:
         logger.info("FastAPI server cancelled")
     finally:
+        # Cancel health cache updater
+        health_cache_task.cancel()
+        try:
+            await health_cache_task
+        except asyncio.CancelledError:
+            pass
         # Cleanup
         await close_redis_client()
         logger.info("Redis client closed")

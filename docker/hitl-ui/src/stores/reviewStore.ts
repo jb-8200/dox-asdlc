@@ -6,10 +6,27 @@
  * - Reviewer progress monitoring
  * - CLI-style output entries
  * - Results and finding selection/ignore state
+ * - Data source toggle (mock vs real backend)
  */
 
 import { create } from 'zustand';
 import type { UnifiedReport, ReviewerType } from '../api/types';
+
+// ============================================================================
+// Data Source Types
+// ============================================================================
+
+/** Data source type for API calls */
+export type ReviewDataSource = 'mock' | 'real';
+
+/**
+ * Get initial data source from localStorage or default to 'mock'
+ */
+function getInitialDataSource(): ReviewDataSource {
+  if (typeof window === 'undefined') return 'mock';
+  const stored = localStorage.getItem('review-data-source');
+  return stored === 'real' ? 'real' : 'mock';
+}
 
 // ============================================================================
 // Types
@@ -61,6 +78,9 @@ export interface ReviewState {
   selectedFindings: Set<string>;
   ignoredFindings: Set<string>;
 
+  // Data source toggle (mock vs real backend)
+  dataSource: ReviewDataSource;
+
   // Actions
   setPhase: (phase: ReviewPhase) => void;
   setSwarmId: (id: string | null) => void;
@@ -76,6 +96,7 @@ export interface ReviewState {
   clearSelection: () => void;
   ignoreFinding: (findingId: string) => void;
   unignoreFinding: (findingId: string) => void;
+  setDataSource: (source: ReviewDataSource) => void;
   reset: () => void;
 }
 
@@ -94,6 +115,7 @@ const initialState = {
   results: null,
   selectedFindings: new Set<string>(),
   ignoredFindings: new Set<string>(),
+  dataSource: getInitialDataSource(),
 };
 
 // ============================================================================
@@ -253,9 +275,18 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     });
   },
 
+  // Data source toggle
+  setDataSource: (source) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('review-data-source', source);
+    }
+    set({ dataSource: source });
+  },
+
   reset: () =>
     set({
       ...initialState,
+      dataSource: get().dataSource,
       selectedFindings: new Set(),
       ignoredFindings: new Set(),
     }),
@@ -313,3 +344,11 @@ export const selectOverallProgress = (state: ReviewState): number => {
   const total = progress.reduce((sum, p) => sum + p.progress, 0);
   return Math.round(total / progress.length);
 };
+
+/**
+ * Check if mocks should be used based on review store data source
+ */
+export function shouldUseMocks(): boolean {
+  const state = useReviewStore.getState();
+  return state.dataSource === 'mock';
+}

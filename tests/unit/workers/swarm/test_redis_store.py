@@ -187,7 +187,7 @@ class TestCreateSession:
         mapping = call_args.kwargs.get("mapping") or call_args[1].get("mapping")
 
         # Verify status is stored as string
-        assert mapping["status"] == "PENDING"
+        assert mapping["status"] == "pending"
 
 
 class TestGetSession:
@@ -218,7 +218,7 @@ class TestGetSession:
             "id": "swarm-abc12345",
             "target_path": "src/workers/",
             "reviewers": '["security", "performance", "style"]',
-            "status": "PENDING",
+            "status": "pending",
             "created_at": "2026-01-20T12:00:00Z",
             "completed_at": "",
             "results": "{}",
@@ -261,7 +261,7 @@ class TestUpdateSessionStatus:
         mock_redis.hset.assert_called_with(
             "test_swarm:session:swarm-abc12345",
             "status",
-            "IN_PROGRESS",
+            "in_progress",
         )
 
     @pytest.mark.asyncio
@@ -276,7 +276,7 @@ class TestUpdateSessionStatus:
         mock_redis.hset.assert_called_with(
             "test_swarm:session:swarm-abc12345",
             "status",
-            "COMPLETE",
+            "complete",
         )
 
     @pytest.mark.asyncio
@@ -291,7 +291,7 @@ class TestUpdateSessionStatus:
         mock_redis.hset.assert_called_with(
             "test_swarm:session:swarm-abc12345",
             "status",
-            "FAILED",
+            "failed",
         )
 
 

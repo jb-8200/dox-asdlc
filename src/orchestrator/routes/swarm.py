@@ -23,6 +23,7 @@ from src.workers.swarm.reviewers import ReviewerRegistry, default_registry
 
 if TYPE_CHECKING:
     from src.workers.swarm.dispatcher import SwarmDispatcher
+    from src.workers.swarm.redis_store import SwarmRedisStore
     from src.workers.swarm.session import SwarmSessionManager
 
 logger = logging.getLogger(__name__)
@@ -146,30 +147,94 @@ def get_reviewer_registry() -> ReviewerRegistry:
     return default_registry
 
 
-def get_swarm_session_manager() -> SwarmSessionManager | None:
+_cached_redis_store: SwarmRedisStore | None = None
+_cached_session_manager: SwarmSessionManager | None = None
+_cached_dispatcher: SwarmDispatcher | None = None
+_init_lock: asyncio.Lock | None = None
+
+
+def _get_init_lock() -> asyncio.Lock:
+    """Get or create the module-level init lock.
+
+    Returns:
+        An asyncio.Lock for guarding lazy initialization.
+    """
+    global _init_lock
+    if _init_lock is None:
+        _init_lock = asyncio.Lock()
+    return _init_lock
+
+
+async def _ensure_swarm_components() -> (
+    tuple[SwarmRedisStore, SwarmSessionManager, SwarmDispatcher] | None
+):
+    """Lazily initialize swarm components using the project Redis client.
+
+    Returns:
+        Tuple of (store, session_manager, dispatcher) or None if Redis
+        is unavailable.
+    """
+    global _cached_redis_store, _cached_session_manager, _cached_dispatcher
+
+    if _cached_dispatcher is not None:
+        return _cached_redis_store, _cached_session_manager, _cached_dispatcher
+
+    async with _get_init_lock():
+        # Double-check after acquiring lock
+        if _cached_dispatcher is not None:
+            return _cached_redis_store, _cached_session_manager, _cached_dispatcher
+
+        try:
+            from src.core.redis_client import get_redis_client
+            from src.workers.swarm.dispatcher import SwarmDispatcher as _Dispatcher
+            from src.workers.swarm.redis_store import SwarmRedisStore as _Store
+            from src.workers.swarm.session import SwarmSessionManager as _Manager
+
+            redis_client = await get_redis_client()
+
+            config = _get_swarm_config()
+            _cached_redis_store = _Store(redis_client, config)
+            _cached_session_manager = _Manager(_cached_redis_store, config)
+            _cached_dispatcher = _Dispatcher(
+                session_manager=_cached_session_manager,
+                redis_store=_cached_redis_store,
+                registry=default_registry,
+                config=config,
+            )
+            return _cached_redis_store, _cached_session_manager, _cached_dispatcher
+        except Exception as exc:
+            logger.warning(f"Could not initialize swarm components: {exc}")
+            return None
+
+
+async def get_swarm_redis_store() -> SwarmRedisStore | None:
+    """Get the swarm Redis store.
+
+    Returns:
+        SwarmRedisStore instance or None if not available.
+    """
+    result = await _ensure_swarm_components()
+    return result[0] if result else None
+
+
+async def get_swarm_session_manager() -> SwarmSessionManager | None:
     """Get the swarm session manager.
 
-    This returns None by default. In production, this should be wired up
-    to return a properly configured SwarmSessionManager.
-
     Returns:
-        SwarmSessionManager instance or None.
+        SwarmSessionManager instance or None if not available.
     """
-    # Placeholder - will be wired up when dispatcher infrastructure is available
-    return None
+    result = await _ensure_swarm_components()
+    return result[1] if result else None
 
 
-def get_swarm_dispatcher() -> SwarmDispatcher | None:
+async def get_swarm_dispatcher() -> SwarmDispatcher | None:
     """Get the swarm dispatcher.
 
-    This returns None by default. In production, this should be wired up
-    to return a properly configured SwarmDispatcher.
-
     Returns:
-        SwarmDispatcher instance or None.
+        SwarmDispatcher instance or None if not available.
     """
-    # Placeholder - will be wired up when dispatcher infrastructure is available
-    return None
+    result = await _ensure_swarm_components()
+    return result[2] if result else None
 
 
 # =============================================================================
@@ -290,25 +355,39 @@ async def unregister_swarm(swarm_id: str) -> None:
 async def run_swarm_background(
     swarm_id: str,
     dispatcher: SwarmDispatcher,
-    target_path: str,
-    reviewer_types: list[str] | None,
-    timeout_seconds: int | None,
 ) -> None:
-    """Run swarm review in background.
+    """Collect results, aggregate, and finalize a swarm that was already dispatched.
+
+    This function is meant to run as a background task after
+    ``dispatcher.dispatch_swarm`` has already created the session and
+    started the parallel reviewer tasks.  It only performs the
+    collect -> aggregate -> finalize steps.
 
     Args:
-        swarm_id: The swarm session ID.
+        swarm_id: The swarm session ID returned by dispatch_swarm.
         dispatcher: The swarm dispatcher instance.
-        target_path: Path to review.
-        reviewer_types: Optional list of reviewer types.
-        timeout_seconds: Optional timeout.
     """
     try:
-        # Note: dispatch_swarm already creates the session, so we just need
-        # to run the full flow and clean up after
-        await dispatcher.run_swarm(target_path, reviewer_types, timeout_seconds)
+        # 1. Collect results (waits for all reviewers)
+        results = await dispatcher.collect_results(swarm_id)
+
+        # 2. Get session for aggregation context
+        session = await dispatcher._session_manager.get_session(swarm_id)
+        if not session:
+            raise ValueError(f"Session lost: {swarm_id}")
+
+        # 3. Aggregate findings into unified report
+        report = dispatcher._aggregator.aggregate(session, results)
+
+        # 4. Finalize swarm (mark complete, publish coordination msg)
+        await dispatcher.finalize_swarm(swarm_id, report)
+
     except Exception as e:
-        logger.error(f"Swarm {swarm_id} failed: {e}")
+        logger.error(f"Swarm {swarm_id} background processing failed: {e}")
+        try:
+            await dispatcher.fail_swarm(swarm_id, str(e))
+        except Exception as fail_err:
+            logger.error(f"Failed to mark swarm {swarm_id} as failed: {fail_err}")
     finally:
         await unregister_swarm(swarm_id)
 
@@ -371,10 +450,10 @@ async def trigger_swarm_review(
     # Register for rate limiting
     await register_swarm(swarm_id)
 
-    # Run the full swarm flow in background (collect, aggregate, finalize)
-    # Note: dispatch_swarm already started the tasks, background just waits
-    # For simplicity, we don't add background task here since dispatch_swarm
-    # handles the task spawning. The client polls for status.
+    # Schedule background task to collect results, aggregate, and finalize.
+    # dispatch_swarm already started the reviewer tasks; this background
+    # task waits for them to complete and produces the unified report.
+    background_tasks.add_task(run_swarm_background, swarm_id, dispatcher)
 
     return SwarmReviewResponse(
         swarm_id=swarm_id,
@@ -387,6 +466,7 @@ async def trigger_swarm_review(
 async def get_swarm_status(
     swarm_id: str,
     session_manager: SwarmSessionManager | None = Depends(get_swarm_session_manager),  # noqa: B008
+    redis_store: SwarmRedisStore | None = Depends(get_swarm_redis_store),  # noqa: B008
 ) -> SwarmStatusResponse:
     """Get status and results of a swarm review.
 
@@ -416,10 +496,23 @@ async def get_swarm_status(
             detail=f"Swarm not found: {swarm_id}",
         )
 
+    # Fetch actual results from the Redis store (BUG-4 fix).
+    # session.results is often {} because results are stored in a
+    # separate Redis key ({prefix}:results:{session_id}).
+    # Fall back to session.results when the store is unavailable.
+    actual_results: dict[str, object] = {}
+    if redis_store is not None:
+        try:
+            actual_results = await redis_store.get_all_results(swarm_id)
+        except Exception as exc:
+            logger.warning(f"Failed to fetch results for {swarm_id}: {exc}")
+    if not actual_results and session.results:
+        actual_results = session.results
+
     # Build reviewer status from results
     reviewers: dict[str, ReviewerStatusResponse] = {}
     for reviewer_type in session.reviewers:
-        result = session.results.get(reviewer_type)
+        result = actual_results.get(reviewer_type)
         if result is None:
             # Reviewer hasn't completed yet
             reviewers[reviewer_type] = ReviewerStatusResponse(

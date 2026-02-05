@@ -44,7 +44,7 @@ EXPOSE 8082
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-    CMD curl -f http://localhost:8082/health || exit 1
+    CMD curl -f http://localhost:8083/health || exit 1
 
 # Start the review swarm service
 CMD ["python", "-m", "src.workers.swarm.main"]

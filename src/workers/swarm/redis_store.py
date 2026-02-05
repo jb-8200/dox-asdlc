@@ -144,7 +144,7 @@ class SwarmRedisStore:
             reviewers=json.loads(data["reviewers"]),
             status=SwarmStatus(data["status"]),
             created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") not in (None, "", "None") else None,
             results=self._deserialize_results(data.get("results", "{}")),
             unified_report=None,  # TODO: Deserialize unified_report if needed
         )

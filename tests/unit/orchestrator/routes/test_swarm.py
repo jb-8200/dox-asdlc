@@ -42,6 +42,14 @@ def mock_session_manager() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_redis_store() -> AsyncMock:
+    """Create a mock SwarmRedisStore."""
+    store = AsyncMock()
+    store.get_all_results = AsyncMock(return_value={})
+    return store
+
+
+@pytest.fixture
 def mock_config() -> MagicMock:
     """Create a mock SwarmConfig."""
     config = MagicMock()
@@ -66,6 +74,7 @@ def client(
     mock_session_manager: AsyncMock,
     mock_config: MagicMock,
     mock_registry: MagicMock,
+    mock_redis_store: AsyncMock,
 ) -> TestClient:
     """Create test client with mocked dependencies."""
     from src.orchestrator.routes.swarm import (
@@ -74,6 +83,7 @@ def client(
         get_swarm_session_manager,
         get_swarm_config,
         get_reviewer_registry,
+        get_swarm_redis_store,
     )
 
     app = FastAPI()
@@ -84,6 +94,7 @@ def client(
     app.dependency_overrides[get_swarm_session_manager] = lambda: mock_session_manager
     app.dependency_overrides[get_swarm_config] = lambda: mock_config
     app.dependency_overrides[get_reviewer_registry] = lambda: mock_registry
+    app.dependency_overrides[get_swarm_redis_store] = lambda: mock_redis_store
 
     return TestClient(app)
 
@@ -309,11 +320,14 @@ class TestGetSwarmStatus:
         assert response.status_code == 200
         data = response.json()
         assert data["swarm_id"] == "swarm-abc12345"
-        assert data["status"] == "PENDING"
+        assert data["status"] == "pending"
         assert "reviewers" in data
 
     def test_get_swarm_status_in_progress(
-        self, client: TestClient, mock_session_manager: AsyncMock
+        self,
+        client: TestClient,
+        mock_session_manager: AsyncMock,
+        mock_redis_store: AsyncMock,
     ) -> None:
         """Test getting status for an in-progress swarm."""
         mock_session = SwarmSession(
@@ -322,24 +336,26 @@ class TestGetSwarmStatus:
             reviewers=["security", "performance", "style"],
             status=SwarmStatus.IN_PROGRESS,
             created_at=datetime.now(timezone.utc),
-            results={
-                "security": ReviewerResult(
-                    reviewer_type="security",
-                    status="success",
-                    findings=[],
-                    duration_seconds=5.5,
-                    files_reviewed=["src/workers/test.py"],
-                ),
-            },
         )
         mock_session_manager.get_session.return_value = mock_session
+
+        # Results are fetched from the redis store, not session.results
+        mock_redis_store.get_all_results.return_value = {
+            "security": ReviewerResult(
+                reviewer_type="security",
+                status="success",
+                findings=[],
+                duration_seconds=5.5,
+                files_reviewed=["src/workers/test.py"],
+            ),
+        }
 
         response = client.get("/api/swarm/review/swarm-abc12345")
 
         assert response.status_code == 200
         data = response.json()
         assert data["swarm_id"] == "swarm-abc12345"
-        assert data["status"] == "IN_PROGRESS"
+        assert data["status"] == "in_progress"
         assert "security" in data["reviewers"]
         assert data["reviewers"]["security"]["status"] == "success"
 
@@ -393,7 +409,7 @@ class TestGetSwarmStatus:
         assert response.status_code == 200
         data = response.json()
         assert data["swarm_id"] == "swarm-abc12345"
-        assert data["status"] == "COMPLETE"
+        assert data["status"] == "complete"
         assert data["unified_report"] is not None
         assert data["unified_report"]["total_findings"] == 1
         assert "duration_seconds" in data
@@ -416,7 +432,7 @@ class TestGetSwarmStatus:
         assert response.status_code == 200
         data = response.json()
         assert data["swarm_id"] == "swarm-abc12345"
-        assert data["status"] == "FAILED"
+        assert data["status"] == "failed"
 
     def test_get_swarm_status_not_found(
         self, client: TestClient, mock_session_manager: AsyncMock
