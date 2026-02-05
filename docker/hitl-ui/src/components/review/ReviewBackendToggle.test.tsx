@@ -19,13 +19,9 @@ const localStorageMock = {
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
-// Mock the apiClient to prevent real HTTP calls during tests
-vi.mock('../../api/client', () => ({
-  apiClient: {
-    get: vi.fn().mockRejectedValue(new Error('Not available in test')),
-    post: vi.fn().mockRejectedValue(new Error('Not available in test')),
-  },
-}));
+// Mock fetch to prevent real HTTP calls during health checks
+const mockFetch = vi.fn().mockRejectedValue(new Error('Not available in test'));
+vi.stubGlobal('fetch', mockFetch);
 
 describe('ReviewBackendToggle', () => {
   beforeEach(() => {

@@ -9,7 +9,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 import { useReviewStore, type ReviewDataSource } from '../../stores/reviewStore';
-import { apiClient } from '../../api/client';
 
 export interface ReviewBackendToggleProps {
   /** Custom class name */
@@ -30,8 +29,8 @@ export default function ReviewBackendToggle({
   const checkHealth = useCallback(async () => {
     setHealthStatus('checking');
     try {
-      const response = await apiClient.get('/health', { timeout: 5000 });
-      if (response.status === 200) {
+      const response = await fetch('/health', { signal: AbortSignal.timeout(5000) });
+      if (response.ok) {
         setHealthStatus('healthy');
       } else {
         setHealthStatus('unhealthy');

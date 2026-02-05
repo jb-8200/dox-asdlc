@@ -477,6 +477,36 @@ class TestInputValidation:
 
         assert response.status_code == 422
 
+    def test_validate_target_path_https_url_accepted(
+        self, client: TestClient, mock_dispatcher: AsyncMock
+    ) -> None:
+        """Test that HTTPS URLs are accepted as external repo targets."""
+        mock_dispatcher.dispatch_swarm.return_value = "swarm-url-https"
+
+        response = client.post(
+            "/api/swarm/review",
+            json={"target_path": "https://github.com/org/repo"},
+        )
+
+        assert response.status_code == 202
+        data = response.json()
+        assert data["swarm_id"] == "swarm-url-https"
+
+    def test_validate_target_path_http_url_accepted(
+        self, client: TestClient, mock_dispatcher: AsyncMock
+    ) -> None:
+        """Test that HTTP URLs are accepted as external repo targets."""
+        mock_dispatcher.dispatch_swarm.return_value = "swarm-url-http"
+
+        response = client.post(
+            "/api/swarm/review",
+            json={"target_path": "http://internal-git.example.com/repo"},
+        )
+
+        assert response.status_code == 202
+        data = response.json()
+        assert data["swarm_id"] == "swarm-url-http"
+
     def test_validate_reviewer_types_empty_list(
         self, client: TestClient, mock_dispatcher: AsyncMock
     ) -> None:

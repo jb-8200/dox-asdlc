@@ -245,6 +245,9 @@ async def get_swarm_dispatcher() -> SwarmDispatcher | None:
 def validate_target_path(path: str, config: SwarmConfig) -> str:
     """Validate target path is within allowed directories.
 
+    URLs (http:// or https://) are accepted as-is for external repo targets.
+    Local paths are validated against allowed prefixes.
+
     Args:
         path: Target path to validate.
         config: Swarm configuration with allowed prefixes.
@@ -255,6 +258,10 @@ def validate_target_path(path: str, config: SwarmConfig) -> str:
     Raises:
         HTTPException: 400 if path is invalid.
     """
+    # Accept URLs as-is (external repo targets for review)
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+
     # Reject absolute paths
     if path.startswith("/"):
         raise HTTPException(status_code=400, detail="Absolute paths not allowed")
