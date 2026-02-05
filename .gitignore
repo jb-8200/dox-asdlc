@@ -73,3 +73,7 @@ wiki/
 
 # Agent worktrees (parallel session isolation)
 .worktrees/
+
+# Helm build artifacts
+helm/*/Chart.lock
+helm/*/charts/*.tgz
