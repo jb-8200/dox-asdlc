@@ -46,8 +46,8 @@ export function ReviewInputPanel({ onStartReview, isLoading }: ReviewInputPanelP
   );
 
   const isValid = useMemo(() => {
-    // Target is required
-    if (!target.trim()) return false;
+    // Target is required for repo-based scopes but not for custom_path
+    if (scope !== 'custom_path' && !target.trim()) return false;
 
     // At least one reviewer must be enabled
     if (!hasEnabledReviewer) return false;
@@ -93,7 +93,7 @@ export function ReviewInputPanel({ onStartReview, isLoading }: ReviewInputPanelP
     // Validate before submitting
     let hasErrors = false;
 
-    if (!target.trim()) {
+    if (scope !== 'custom_path' && !target.trim()) {
       setTargetError('Target is required');
       hasErrors = true;
     }
@@ -108,7 +108,7 @@ export function ReviewInputPanel({ onStartReview, isLoading }: ReviewInputPanelP
     }
 
     const config: ReviewConfig = {
-      target: target.trim(),
+      target: scope === 'custom_path' ? (target.trim() || customPath.trim()) : target.trim(),
       scope,
       customPath: scope === 'custom_path' ? customPath.trim() : undefined,
       reviewers,

@@ -9,12 +9,12 @@
 
 Create Zustand store for managing review state.
 
-- [ ] Create `src/stores/reviewStore.ts`
-- [ ] Define ReviewState interface with all state fields
-- [ ] Implement actions: startReview, updateProgress, setResults, reset
-- [ ] Implement selection actions: toggleFinding, selectAll, clearSelection
-- [ ] Implement ignore actions: ignoreFinding, unignoreFinding
-- [ ] Write unit tests in `src/stores/reviewStore.test.ts`
+- [x] Create `src/stores/reviewStore.ts`
+- [x] Define ReviewState interface with all state fields
+- [x] Implement actions: startReview, updateProgress, setResults, reset
+- [x] Implement selection actions: toggleFinding, selectAll, clearSelection
+- [x] Implement ignore actions: ignoreFinding, unignoreFinding
+- [x] Write unit tests in `src/stores/reviewStore.test.ts`
 
 **Acceptance**: Store exports work, all actions tested, TypeScript compiles.
 
@@ -27,7 +27,7 @@ Create Zustand store for managing review state.
 
 Add review-related types to the type system.
 
-- [ ] Add review types to `src/api/types.ts`:
+- [x] Add review types to `src/api/types.ts`:
   - ReviewConfig
   - ReviewerProgress
   - CLIEntry
@@ -36,8 +36,8 @@ Add review-related types to the type system.
   - SwarmReviewRequest
   - SwarmReviewResponse
   - SwarmStatusResponse
-- [ ] Add severity type and labels mapping
-- [ ] Add reviewer type enum and labels mapping
+- [x] Add severity type and labels mapping
+- [x] Add reviewer type enum and labels mapping
 
 **Acceptance**: All types compile, exported from types.ts.
 
@@ -50,13 +50,13 @@ Add review-related types to the type system.
 
 Create TanStack Query hooks for swarm API.
 
-- [ ] Create `src/api/swarm.ts`
-- [ ] Define query keys: swarmKeys.all, swarmKeys.status, swarmKeys.results
-- [ ] Implement useSwarmReview mutation (POST /api/swarm/review)
-- [ ] Implement useSwarmStatus query with polling (GET /api/swarm/review/{id})
-- [ ] Create mock data in `src/api/mocks/swarmMocks.ts`
-- [ ] Add mock mode support (VITE_USE_MOCKS)
-- [ ] Write basic tests
+- [x] Create `src/api/swarm.ts`
+- [x] Define query keys: swarmKeys.all, swarmKeys.status, swarmKeys.results
+- [x] Implement useSwarmReview mutation (POST /api/swarm/review)
+- [x] Implement useSwarmStatus query with polling (GET /api/swarm/review/{id})
+- [x] Create mock data in `src/api/mocks/swarmMocks.ts`
+- [x] Add mock mode support (VITE_USE_MOCKS)
+- [x] Write basic tests
 
 **Acceptance**: Hooks work in mock mode, polling tested.
 
@@ -71,13 +71,13 @@ Create TanStack Query hooks for swarm API.
 
 Build the main input panel container.
 
-- [ ] Create `src/components/review/ReviewInputPanel.tsx`
-- [ ] Define props interface
-- [ ] Layout: target input, scope selector, toggles, start button
-- [ ] Wire up form state with controlled inputs
-- [ ] Handle validation state
-- [ ] Create `src/components/review/index.ts` barrel export
-- [ ] Write unit tests
+- [x] Create `src/components/review/ReviewInputPanel.tsx`
+- [x] Define props interface
+- [x] Layout: target input, scope selector, toggles, start button
+- [x] Wire up form state with controlled inputs
+- [x] Handle validation state
+- [x] Create `src/components/review/index.ts` barrel export
+- [x] Write unit tests
 
 **Acceptance**: Component renders, form state works, exports from index.
 
@@ -90,12 +90,12 @@ Build the main input panel container.
 
 Build target input with validation.
 
-- [ ] Create target input subcomponent in ReviewInputPanel or separate file
-- [ ] Add placeholder text showing examples
-- [ ] Implement validation (URL, PR number, branch format)
-- [ ] Show error message below input
-- [ ] Style using existing input patterns
-- [ ] Test validation logic
+- [x] Create target input subcomponent in ReviewInputPanel or separate file
+- [x] Add placeholder text showing examples
+- [x] Implement validation (URL, PR number, branch format)
+- [x] Show error message below input
+- [x] Style using existing input patterns
+- [x] Test validation logic
 
 **Acceptance**: Validates various input formats, shows errors.
 
@@ -108,11 +108,11 @@ Build target input with validation.
 
 Build scope radio group.
 
-- [ ] Create scope selector using @headlessui/react RadioGroup
-- [ ] Three options: Full Repo, Changed Files, Custom Path
-- [ ] Style to match existing UI patterns
-- [ ] Emit scope change events
-- [ ] Test selection behavior
+- [x] Create scope selector using @headlessui/react RadioGroup
+- [x] Three options: Full Repo, Changed Files, Custom Path
+- [x] Style to match existing UI patterns
+- [x] Emit scope change events
+- [x] Test selection behavior
 
 **Acceptance**: Selection works, styled consistently.
 
@@ -125,12 +125,12 @@ Build scope radio group.
 
 Build reviewer toggle switches.
 
-- [ ] Create toggle group for Security, Performance, Style
-- [ ] Each toggle shows icon, name, brief description
-- [ ] Use @headlessui/react Switch
-- [ ] Show warning when all disabled
-- [ ] Style with reviewer colors (purple, teal, blue)
-- [ ] Test toggle logic and warning state
+- [x] Create toggle group for Security, Performance, Style
+- [x] Each toggle shows icon, name, brief description
+- [x] Use @headlessui/react Switch
+- [x] Show warning when all disabled
+- [x] Style with reviewer colors (purple, teal, blue)
+- [x] Test toggle logic and warning state
 
 **Acceptance**: Toggles work, warning shows when all off.
 
@@ -143,10 +143,10 @@ Build reviewer toggle switches.
 
 Build conditional path input.
 
-- [ ] Create custom path input that shows when scope is "custom_path"
-- [ ] Validate path format
-- [ ] Style consistently
-- [ ] Test show/hide behavior
+- [x] Create custom path input that shows when scope is "custom_path"
+- [x] Validate path format
+- [x] Style consistently
+- [x] Test show/hide behavior
 
 **Acceptance**: Shows/hides with scope, validates input.
 
@@ -161,12 +161,12 @@ Build conditional path input.
 
 Build progress panel container.
 
-- [ ] Create `src/components/review/ReviewProgressPanel.tsx`
-- [ ] Layout: three-lane view, CLI mimic, token counter
-- [ ] Subscribe to swarm status via useSwarmStatus hook
-- [ ] Update store with progress
-- [ ] Handle completion transition
-- [ ] Write unit tests
+- [x] Create `src/components/review/ReviewProgressPanel.tsx`
+- [x] Layout: three-lane view, CLI mimic, token counter
+- [x] Subscribe to swarm status via useSwarmStatus hook
+- [x] Update store with progress
+- [x] Handle completion transition
+- [x] Write unit tests
 
 **Acceptance**: Panel renders, updates from polling.
 
@@ -179,12 +179,12 @@ Build progress panel container.
 
 Build parallel reviewer progress lanes.
 
-- [ ] Create `src/components/review/ThreeLaneView.tsx`
-- [ ] Three columns for Security, Performance, Style
-- [ ] Each lane: icon, status indicator, progress bar, files count
-- [ ] Status colors: pending (gray), in_progress (blue pulse), complete (green), failed (red)
-- [ ] Animate progress bars with CSS transitions
-- [ ] Write unit tests for status states
+- [x] Create `src/components/review/ThreeLaneView.tsx`
+- [x] Three columns for Security, Performance, Style
+- [x] Each lane: icon, status indicator, progress bar, files count
+- [x] Status colors: pending (gray), in_progress (blue pulse), complete (green), failed (red)
+- [x] Animate progress bars with CSS transitions
+- [x] Write unit tests for status states
 
 **Acceptance**: Lanes show correct status, progress animates.
 
@@ -197,13 +197,13 @@ Build parallel reviewer progress lanes.
 
 Build terminal-style output display.
 
-- [ ] Create `src/components/review/CLIMimicView.tsx`
-- [ ] Dark terminal background with monospace font
-- [ ] Color-code entries by reviewer
-- [ ] Show timestamp prefix
-- [ ] Implement auto-scroll with scroll lock detection
-- [ ] Limit to 500 entries
-- [ ] Write unit tests for scroll behavior
+- [x] Create `src/components/review/CLIMimicView.tsx`
+- [x] Dark terminal background with monospace font
+- [x] Color-code entries by reviewer
+- [x] Show timestamp prefix
+- [x] Implement auto-scroll with scroll lock detection
+- [x] Limit to 500 entries
+- [x] Write unit tests for scroll behavior
 
 **Acceptance**: Terminal look, auto-scroll works, colors correct.
 
@@ -216,12 +216,12 @@ Build terminal-style output display.
 
 Build metrics display.
 
-- [ ] Create `src/components/review/TokenCostCounter.tsx`
-- [ ] Display tokens with thousands separator
-- [ ] Display cost with 4 decimal places (e.g., $0.0023)
-- [ ] Show spinner while running
-- [ ] Style compactly
-- [ ] Write unit tests
+- [x] Create `src/components/review/TokenCostCounter.tsx`
+- [x] Display tokens with thousands separator
+- [x] Display cost with 4 decimal places (e.g., $0.0023)
+- [x] Show spinner while running
+- [x] Style compactly
+- [x] Write unit tests
 
 **Acceptance**: Numbers format correctly, spinner shows.
 
@@ -236,11 +236,11 @@ Build metrics display.
 
 Build results panel container.
 
-- [ ] Create `src/components/review/ReviewResultsPanel.tsx`
-- [ ] Layout: severity summary, bulk bar, findings list
-- [ ] Fetch results from store or useSwarmResults
-- [ ] Handle empty results state
-- [ ] Write unit tests
+- [x] Create `src/components/review/ReviewResultsPanel.tsx`
+- [x] Layout: severity summary, bulk bar, findings list
+- [x] Fetch results from store or useSwarmResults
+- [x] Handle empty results state
+- [x] Write unit tests
 
 **Acceptance**: Panel renders, shows results from store.
 
@@ -253,12 +253,12 @@ Build results panel container.
 
 Build traffic light severity display.
 
-- [ ] Create `src/components/review/SeveritySummary.tsx`
-- [ ] Three sections: red (critical+high), yellow (medium), green (low+info)
-- [ ] Show counts in each section
-- [ ] Click to scroll to findings section
-- [ ] Visually appealing traffic light design
-- [ ] Write unit tests
+- [x] Create `src/components/review/SeveritySummary.tsx`
+- [x] Three sections: red (critical+high), yellow (medium), green (low+info)
+- [x] Show counts in each section
+- [x] Click to scroll to findings section
+- [x] Visually appealing traffic light design
+- [x] Write unit tests
 
 **Acceptance**: Counts correct, click scrolls to section.
 
@@ -271,13 +271,13 @@ Build traffic light severity display.
 
 Build individual finding display.
 
-- [ ] Create `src/components/review/FindingCard.tsx`
-- [ ] Collapsed state: severity badge, title, file path, reviewer
-- [ ] Expanded state: add description, code snippet, recommendation
-- [ ] Action buttons: Create Issue, Copy, Ignore
-- [ ] Checkbox for selection
-- [ ] Dimmed style when ignored
-- [ ] Write unit tests for states
+- [x] Create `src/components/review/FindingCard.tsx`
+- [x] Collapsed state: severity badge, title, file path, reviewer
+- [x] Expanded state: add description, code snippet, recommendation
+- [x] Action buttons: Create Issue, Copy, Ignore
+- [x] Checkbox for selection
+- [x] Dimmed style when ignored
+- [x] Write unit tests for states
 
 **Acceptance**: Expand/collapse works, actions emit events.
 
@@ -290,12 +290,12 @@ Build individual finding display.
 
 Build syntax-highlighted code display.
 
-- [ ] Create `src/components/review/CodeSnippetDisplay.tsx`
-- [ ] Add prism-react-renderer dependency if needed
-- [ ] Display code with line numbers starting at lineStart
-- [ ] Highlight specific lines if provided
-- [ ] Handle missing code gracefully
-- [ ] Write unit tests
+- [x] Create `src/components/review/CodeSnippetDisplay.tsx`
+- [x] Add prism-react-renderer dependency if needed
+- [x] Display code with line numbers starting at lineStart
+- [x] Highlight specific lines if provided
+- [x] Handle missing code gracefully
+- [x] Write unit tests
 
 **Acceptance**: Code highlighted, line numbers correct.
 
@@ -308,13 +308,13 @@ Build syntax-highlighted code display.
 
 Build grouped findings list.
 
-- [ ] Create `src/components/review/FindingsList.tsx`
-- [ ] Group findings by file path
-- [ ] Collapsible file groups
-- [ ] Filter by severity (optional)
-- [ ] Show/hide ignored toggle
-- [ ] Scroll to finding by ID
-- [ ] Write unit tests
+- [x] Create `src/components/review/FindingsList.tsx`
+- [x] Group findings by file path
+- [x] Collapsible file groups
+- [x] Filter by severity (optional)
+- [x] Show/hide ignored toggle
+- [x] Scroll to finding by ID
+- [x] Write unit tests
 
 **Acceptance**: Grouping works, filtering works, scroll works.
 
@@ -327,11 +327,11 @@ Build grouped findings list.
 
 Build bulk action toolbar.
 
-- [ ] Create `src/components/review/BulkActionsBar.tsx`
-- [ ] Show when findings selected: count, select all, clear, create issues
-- [ ] Sticky position at top of findings area
-- [ ] Style consistent with header bars
-- [ ] Write unit tests
+- [x] Create `src/components/review/BulkActionsBar.tsx`
+- [x] Show when findings selected: count, select all, clear, create issues
+- [x] Sticky position at top of findings area
+- [x] Style consistent with header bars
+- [x] Write unit tests
 
 **Acceptance**: Actions work, count updates.
 
@@ -405,12 +405,12 @@ Define issue content templates.
 
 Build export functionality.
 
-- [ ] Create `src/utils/reportExport.ts`
-- [ ] Implement exportToMarkdown(report) function
-- [ ] Implement exportToPDF(report) function (use browser print or library)
-- [ ] Format with summary, metrics, all findings
-- [ ] Generate filename with swarm ID and date
-- [ ] Write unit tests for Markdown output
+- [x] Create `src/utils/reportExport.ts`
+- [x] Implement exportToMarkdown(report) function
+- [x] Implement exportToPDF(report) function (use browser print or library)
+- [x] Format with summary, metrics, all findings
+- [x] Generate filename with swarm ID and date
+- [x] Write unit tests for Markdown output
 
 **Acceptance**: Markdown export correct, PDF downloads.
 
@@ -423,11 +423,11 @@ Build export functionality.
 
 Build clipboard copy function.
 
-- [ ] Create `src/utils/clipboardUtils.ts`
-- [ ] Implement copyToClipboard(text) with Clipboard API
-- [ ] Fallback for older browsers
-- [ ] Implement findingToMarkdown(finding) formatter
-- [ ] Test copy functionality
+- [x] Create `src/utils/clipboardUtils.ts`
+- [x] Implement copyToClipboard(text) with Clipboard API
+- [x] Fallback for older browsers
+- [x] Implement findingToMarkdown(finding) formatter
+- [x] Test copy functionality
 
 **Acceptance**: Copy works, formatted as Markdown.
 
@@ -442,13 +442,13 @@ Build clipboard copy function.
 
 Assemble the full page.
 
-- [ ] Create `src/pages/CodeReviewPage.tsx`
-- [ ] Manage phase state: input | progress | results
-- [ ] Wire ReviewInputPanel with startReview handler
-- [ ] Transition to progress on start
-- [ ] Transition to results on complete
-- [ ] Handle back/reset navigation
-- [ ] Write integration tests
+- [x] Create `src/pages/CodeReviewPage.tsx`
+- [x] Manage phase state: input | progress | results
+- [x] Wire ReviewInputPanel with startReview handler
+- [x] Transition to progress on start
+- [x] Transition to results on complete
+- [x] Handle back/reset navigation
+- [x] Write integration tests
 
 **Acceptance**: Full flow works from input to results.
 
@@ -461,11 +461,11 @@ Assemble the full page.
 
 Integrate into app routing.
 
-- [ ] Add route in App.tsx: `/review` -> CodeReviewPage
-- [ ] Add "Code Review" link in Sidebar.tsx
-- [ ] Choose appropriate icon (CodeBracketIcon or similar)
-- [ ] Verify navigation highlighting
-- [ ] Test navigation
+- [x] Add route in App.tsx: `/review` -> CodeReviewPage
+- [x] Add "Code Review" link in Sidebar.tsx
+- [x] Choose appropriate icon (CodeBracketIcon or similar)
+- [x] Verify navigation highlighting
+- [x] Test navigation
 
 **Acceptance**: Route works, sidebar link works.
 
@@ -562,6 +562,19 @@ Manual testing and polish.
 
 ---
 
+## Phase 10: Real-Mode Integration Fixes (Added)
+
+### T31: Fix Real-Mode Progress Panel
+**Status:** COMPLETE
+
+- [x] Fix status normalization in ReviewProgressPanel.tsx (backend 'success' -> frontend 'complete')
+- [x] Add 'success' to ReviewerStatus type in api/types.ts
+- [x] Fix null-safety in ThreeLaneView.tsx (durationSeconds null check)
+- [x] Fix form validation in ReviewInputPanel.tsx (Target not required for custom_path scope)
+- [x] Fix handleSubmit validation to match isValid logic
+
+---
+
 ## Progress Tracking
 
 ### Summary
@@ -577,36 +590,37 @@ Manual testing and polish.
 | 7. Page Integration | T24-T25 | 2.0 |
 | 8. Polish and Error Handling | T26-T28 | 3.0 |
 | 9. Testing | T29-T30 | 4.0 |
-| **Total** | **30 tasks** | **35.5 hours** |
+| 10. Real-Mode Fixes | T31 | 1.0 |
+| **Total** | **31 tasks** | **36.5 hours** |
 
 ### Task Completion
 
 ```
 Phase 1: Foundation
-[ ] T01 - Create Review Store (1.5h)
-[ ] T02 - Define Review Types (1h)
-[ ] T03 - Create Swarm API Hooks (1.5h)
+[x] T01 - Create Review Store (1.5h)
+[x] T02 - Define Review Types (1h)
+[x] T03 - Create Swarm API Hooks (1.5h)
 
 Phase 2: Input Components
-[ ] T04 - Create ReviewInputPanel Component (1.5h)
-[ ] T05 - Create TargetInput Component (1h)
-[ ] T06 - Create ScopeSelector Component (1h)
-[ ] T07 - Create ReviewerToggles Component (1h)
-[ ] T08 - Create CustomPathInput Component (0.5h)
+[x] T04 - Create ReviewInputPanel Component (1.5h)
+[x] T05 - Create TargetInput Component (1h)
+[x] T06 - Create ScopeSelector Component (1h)
+[x] T07 - Create ReviewerToggles Component (1h)
+[x] T08 - Create CustomPathInput Component (0.5h)
 
 Phase 3: Progress Components
-[ ] T09 - Create ReviewProgressPanel Component (1h)
-[ ] T10 - Create ThreeLaneView Component (1.5h)
-[ ] T11 - Create CLIMimicView Component (1.5h)
-[ ] T12 - Create TokenCostCounter Component (0.5h)
+[x] T09 - Create ReviewProgressPanel Component (1h)
+[x] T10 - Create ThreeLaneView Component (1.5h)
+[x] T11 - Create CLIMimicView Component (1.5h)
+[x] T12 - Create TokenCostCounter Component (0.5h)
 
 Phase 4: Results Components
-[ ] T13 - Create ReviewResultsPanel Component (1h)
-[ ] T14 - Create SeveritySummary Component (1h)
-[ ] T15 - Create FindingCard Component (1.5h)
-[ ] T16 - Create CodeSnippetDisplay Component (1h)
-[ ] T17 - Create FindingsList Component (1.5h)
-[ ] T18 - Create BulkActionsBar Component (1h)
+[x] T13 - Create ReviewResultsPanel Component (1h)
+[x] T14 - Create SeveritySummary Component (1h)
+[x] T15 - Create FindingCard Component (1.5h)
+[x] T16 - Create CodeSnippetDisplay Component (1h)
+[x] T17 - Create FindingsList Component (1.5h)
+[x] T18 - Create BulkActionsBar Component (1h)
 
 Phase 5: GitHub Integration
 [ ] T19 - Create GitHub API Client (1.5h)
@@ -614,12 +628,12 @@ Phase 5: GitHub Integration
 [ ] T21 - Create Issue Templates (0.5h)
 
 Phase 6: Export and Utilities
-[ ] T22 - Create Report Export Utility (1.5h)
-[ ] T23 - Create Clipboard Utility (0.5h)
+[x] T22 - Create Report Export Utility (1.5h)
+[x] T23 - Create Clipboard Utility (0.5h)
 
 Phase 7: Page Integration
-[ ] T24 - Create CodeReviewPage Component (1.5h)
-[ ] T25 - Add Route and Navigation (0.5h)
+[x] T24 - Create CodeReviewPage Component (1.5h)
+[x] T25 - Add Route and Navigation (0.5h)
 
 Phase 8: Polish and Error Handling
 [ ] T26 - Add Error Toast Notifications (1h)
@@ -630,7 +644,10 @@ Phase 9: Testing
 [ ] T29 - Write Integration Tests (2h)
 [ ] T30 - Manual QA and Bug Fixes (2h)
 
-Progress: 0/30 tasks (0%)
+Phase 10: Real-Mode Integration Fixes (Added)
+[x] T31 - Fix Real-Mode Progress Panel (1h)
+
+Progress: 28/31 tasks (90%)
 ```
 
 ## Dependency Graph

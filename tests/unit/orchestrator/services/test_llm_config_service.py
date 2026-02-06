@@ -783,3 +783,238 @@ class TestAPIKeyTesting:
             call_args = service._redis_client.set.call_args
             stored_data = json.loads(call_args[0][1])
             assert stored_data["is_valid"] is True
+
+
+class TestFindKeyForProvider:
+    """Tests for _find_key_for_provider method."""
+
+    @pytest.fixture
+    def service(self) -> LLMConfigService:
+        """Create a service instance with mocked Redis."""
+        mock_client = AsyncMock()
+        return LLMConfigService(redis_client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_find_key_returns_matching_key_id(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that _find_key_for_provider returns the first valid key for provider."""
+        service._redis_client.keys.return_value = [
+            b"llm:keys:key-1",
+            b"llm:keys:key-2",
+        ]
+        service._redis_client.get.side_effect = [
+            json.dumps({
+                "id": "key-1",
+                "provider": "openai",
+                "name": "OpenAI Key",
+                "key_encrypted": "encrypted-data",
+                "key_masked": "sk-...123",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_used": None,
+                "is_valid": True,
+            }),
+            json.dumps({
+                "id": "key-2",
+                "provider": "anthropic",
+                "name": "Anthropic Key",
+                "key_encrypted": "encrypted-data-2",
+                "key_masked": "sk-ant-...456",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_used": None,
+                "is_valid": True,
+            }),
+        ]
+
+        result = await service._find_key_for_provider(LLMProvider.ANTHROPIC)
+
+        assert result == "key-2"
+
+    @pytest.mark.asyncio
+    async def test_find_key_returns_none_when_no_keys(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that _find_key_for_provider returns None when no keys exist."""
+        service._redis_client.keys.return_value = []
+
+        result = await service._find_key_for_provider(LLMProvider.ANTHROPIC)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_find_key_skips_invalid_keys(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that _find_key_for_provider skips keys marked as invalid."""
+        service._redis_client.keys.return_value = [
+            b"llm:keys:key-1",
+            b"llm:keys:key-2",
+        ]
+        service._redis_client.get.side_effect = [
+            json.dumps({
+                "id": "key-1",
+                "provider": "anthropic",
+                "name": "Invalid Key",
+                "key_encrypted": "encrypted-data",
+                "key_masked": "sk-ant-...123",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_used": None,
+                "is_valid": False,  # Invalid key
+            }),
+            json.dumps({
+                "id": "key-2",
+                "provider": "anthropic",
+                "name": "Valid Key",
+                "key_encrypted": "encrypted-data-2",
+                "key_masked": "sk-ant-...456",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_used": None,
+                "is_valid": True,
+            }),
+        ]
+
+        result = await service._find_key_for_provider(LLMProvider.ANTHROPIC)
+
+        assert result == "key-2"
+
+    @pytest.mark.asyncio
+    async def test_find_key_returns_none_when_no_matching_provider(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that _find_key_for_provider returns None when no keys match provider."""
+        service._redis_client.keys.return_value = [b"llm:keys:key-1"]
+        service._redis_client.get.side_effect = [
+            json.dumps({
+                "id": "key-1",
+                "provider": "openai",
+                "name": "OpenAI Key",
+                "key_encrypted": "encrypted-data",
+                "key_masked": "sk-...123",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_used": None,
+                "is_valid": True,
+            }),
+        ]
+
+        result = await service._find_key_for_provider(LLMProvider.ANTHROPIC)
+
+        assert result is None
+
+
+class TestGetModelsDynamic:
+    """Tests for get_models method with dynamic discovery."""
+
+    @pytest.fixture
+    def service(self) -> LLMConfigService:
+        """Create a service instance with mocked Redis."""
+        mock_client = AsyncMock()
+        return LLMConfigService(redis_client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_get_models_uses_dynamic_discovery(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that get_models uses dynamic discovery when API key is available."""
+        # Mock _find_key_for_provider to return a key
+        discovered_models = [
+            {
+                "id": "claude-opus-4-20250514",
+                "name": "Claude Opus 4",
+                "provider": "anthropic",
+                "context_window": 200000,
+                "max_output": 32768,
+                "capabilities": ["chat", "tools", "vision"],
+                "deprecated": False,
+                "discovered_at": "2026-01-29T10:00:00Z",
+            },
+            {
+                "id": "claude-sonnet-4-20250514",
+                "name": "Claude Sonnet 4",
+                "provider": "anthropic",
+                "context_window": 200000,
+                "max_output": 16384,
+                "capabilities": ["chat", "tools"],
+                "deprecated": False,
+                "discovered_at": "2026-01-29T10:00:00Z",
+            },
+        ]
+
+        with patch.object(
+            service, "_find_key_for_provider", new_callable=AsyncMock
+        ) as mock_find_key, patch.object(
+            service, "get_cached_models", new_callable=AsyncMock
+        ) as mock_cached:
+            mock_find_key.return_value = "key-123"
+            mock_cached.return_value = discovered_models
+
+            result = await service.get_models(LLMProvider.ANTHROPIC)
+
+            assert len(result) == 2
+            assert all(isinstance(m, LLMModel) for m in result)
+            assert result[0].id == "claude-opus-4-20250514"
+            assert result[0].provider == LLMProvider.ANTHROPIC
+            assert result[0].context_window == 200000
+            assert result[0].max_output == 32768
+            assert result[1].id == "claude-sonnet-4-20250514"
+
+            mock_find_key.assert_called_once_with(LLMProvider.ANTHROPIC)
+            mock_cached.assert_called_once_with("key-123")
+
+    @pytest.mark.asyncio
+    async def test_get_models_falls_back_when_no_key(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that get_models falls back to static list when no API key exists."""
+        with patch.object(
+            service, "_find_key_for_provider", new_callable=AsyncMock
+        ) as mock_find_key:
+            mock_find_key.return_value = None
+
+            result = await service.get_models(LLMProvider.ANTHROPIC)
+
+            # Should return the static ANTHROPIC_MODELS list
+            assert len(result) > 0
+            assert all(isinstance(m, LLMModel) for m in result)
+            assert all(m.provider == LLMProvider.ANTHROPIC for m in result)
+            # Verify it includes the hardcoded model
+            model_ids = [m.id for m in result]
+            assert "claude-sonnet-4-20250514" in model_ids
+
+    @pytest.mark.asyncio
+    async def test_get_models_falls_back_on_discovery_error(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that get_models falls back to static list when discovery fails."""
+        with patch.object(
+            service, "_find_key_for_provider", new_callable=AsyncMock
+        ) as mock_find_key, patch.object(
+            service, "get_cached_models", new_callable=AsyncMock
+        ) as mock_cached:
+            mock_find_key.return_value = "key-123"
+            mock_cached.side_effect = Exception("Redis connection failed")
+
+            result = await service.get_models(LLMProvider.ANTHROPIC)
+
+            # Should fall back to static list
+            assert len(result) > 0
+            assert all(isinstance(m, LLMModel) for m in result)
+            assert all(m.provider == LLMProvider.ANTHROPIC for m in result)
+
+    @pytest.mark.asyncio
+    async def test_get_models_falls_back_when_discovery_returns_empty(
+        self, service: LLMConfigService
+    ) -> None:
+        """Test that get_models falls back to static list when discovery returns empty."""
+        with patch.object(
+            service, "_find_key_for_provider", new_callable=AsyncMock
+        ) as mock_find_key, patch.object(
+            service, "get_cached_models", new_callable=AsyncMock
+        ) as mock_cached:
+            mock_find_key.return_value = "key-123"
+            mock_cached.return_value = []
+
+            result = await service.get_models(LLMProvider.ANTHROPIC)
+
+            # Should fall back to static list since discovered is empty
+            assert len(result) > 0
+            assert all(m.provider == LLMProvider.ANTHROPIC for m in result)

@@ -118,6 +118,7 @@ class ModelDiscoveryService:
                         "x-api-key": api_key,
                         "anthropic-version": "2023-06-01",
                     },
+                    params={"limit": 1000},
                     timeout=30.0,
                 )
                 if resp.status_code == 200:
@@ -185,7 +186,8 @@ class ModelDiscoveryService:
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(
-                    f"https://generativelanguage.googleapis.com/v1/models?key={api_key}",
+                    "https://generativelanguage.googleapis.com/v1/models",
+                    params={"key": api_key, "pageSize": 1000},
                     timeout=30.0,
                 )
                 if resp.status_code == 200:

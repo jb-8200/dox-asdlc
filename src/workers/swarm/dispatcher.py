@@ -173,23 +173,13 @@ class SwarmDispatcher:
             if self._registry.get(rt) is not None
         ]
 
-        # 4. Create task coroutines
-        tasks = [
-            self._run_reviewer(session.id, target_path, reviewer)
-            for reviewer in reviewers
-        ]
-
-        # 5. Execute in parallel with timeout
-        timeout = timeout_seconds or self._config.task_timeout_seconds
-        try:
-            await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=timeout,
-            )
-        except TimeoutError:
-            # Handle timeout - session still valid with partial results
-            logger.warning(
-                f"Swarm dispatch timed out for session {session.id} after {timeout}s"
+        # 4. Fire off reviewer tasks without blocking so the API can
+        #    return immediately.  Each task stores its result to Redis;
+        #    ``collect_results`` polls Redis to gather them later.
+        for reviewer in reviewers:
+            asyncio.create_task(
+                self._run_reviewer(session.id, target_path, reviewer),
+                name=f"reviewer-{session.id}-{reviewer.reviewer_type}",
             )
 
         return session.id
@@ -294,6 +284,12 @@ class SwarmDispatcher:
             session_id,
             SwarmStatus.COMPLETE,
             completed_at=datetime.now(UTC),
+        )
+
+        # Store the unified report on the session
+        session_key = f"{self._store._config.key_prefix}:session:{session_id}"
+        await self._store._redis.hset(
+            session_key, "unified_report", unified_report.model_dump_json()
         )
 
         await self._publish(

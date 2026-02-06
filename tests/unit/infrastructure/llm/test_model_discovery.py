@@ -132,26 +132,50 @@ class TestDiscoverAnthropic:
                 }
             ]
         }
-        
+
         with patch("httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get.return_value = mock_response
             mock_instance.__aenter__.return_value = mock_instance
             mock_instance.__aexit__.return_value = None
             mock_client.return_value = mock_instance
-            
+
             result = await service._discover_anthropic("test-api-key")
-            
+
             assert len(result) == 1
             assert result[0].id == "claude-sonnet-4-20250514"
             assert result[0].name == "Claude Sonnet 4"
             assert result[0].provider == "anthropic"
-            
+
             # Verify correct headers were sent
             mock_instance.get.assert_called_once()
             call_kwargs = mock_instance.get.call_args
             assert call_kwargs[1]["headers"]["x-api-key"] == "test-api-key"
             assert "anthropic-version" in call_kwargs[1]["headers"]
+
+    @pytest.mark.asyncio
+    async def test_discover_anthropic_sends_limit_param(
+        self, service: ModelDiscoveryService
+    ) -> None:
+        """Test that Anthropic discovery sends limit=1000 to fetch all models."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": []}
+
+        with patch("httpx.AsyncClient") as mock_client:
+            mock_instance = AsyncMock()
+            mock_instance.get.return_value = mock_response
+            mock_instance.__aenter__.return_value = mock_instance
+            mock_instance.__aexit__.return_value = None
+            mock_client.return_value = mock_instance
+
+            await service._discover_anthropic("test-api-key")
+
+            # Verify that params={"limit": 1000} was passed
+            mock_instance.get.assert_called_once()
+            call_kwargs = mock_instance.get.call_args
+            assert "params" in call_kwargs[1]
+            assert call_kwargs[1]["params"] == {"limit": 1000}
 
     @pytest.mark.asyncio
     async def test_discover_anthropic_api_error(self, service: ModelDiscoveryService) -> None:
@@ -308,6 +332,26 @@ class TestDiscoverGoogle:
             assert result[0].name == "Gemini 1.5 Pro"
             assert result[0].context_window == 2000000
             assert result[0].max_output == 8192
+
+    @pytest.mark.asyncio
+    async def test_discover_google_sends_page_size_param(self, service: ModelDiscoveryService) -> None:
+        """Test that Google discovery sends pageSize=1000."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": []}
+
+        with patch("httpx.AsyncClient") as mock_client:
+            mock_instance = AsyncMock()
+            mock_instance.get.return_value = mock_response
+            mock_instance.__aenter__.return_value = mock_instance
+            mock_instance.__aexit__.return_value = None
+            mock_client.return_value = mock_instance
+
+            await service._discover_google("test-api-key")
+
+            mock_instance.get.assert_called_once()
+            call_kwargs = mock_instance.get.call_args
+            assert call_kwargs.kwargs.get("params", {}).get("pageSize") == 1000
 
     @pytest.mark.asyncio
     async def test_discover_google_api_error(self, service: ModelDiscoveryService) -> None:

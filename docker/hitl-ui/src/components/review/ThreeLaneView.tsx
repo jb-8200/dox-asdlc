@@ -167,7 +167,7 @@ export function ThreeLaneView({ reviewers }: ThreeLaneViewProps) {
             </div>
 
             {/* Duration (if complete) */}
-            {reviewer.durationSeconds !== undefined && (
+            {reviewer.durationSeconds != null && (
               <p
                 className="mt-2 text-xs text-text-tertiary"
                 data-testid={`duration-${reviewer.type}`}

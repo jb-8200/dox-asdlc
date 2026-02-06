@@ -19,13 +19,16 @@ from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
 
 from src.core.redis_client import close_redis_client, get_redis_client
 from src.infrastructure.health import HealthChecker, get_health_checker
+from src.infrastructure.llm.factory import LLMClientFactory
 from src.infrastructure.metrics import (
     ProcessMetricsCollector,
     RedisMetricsCollector,
     initialize_service_info,
 )
+from src.orchestrator.services.llm_config_service import LLMConfigService
 from src.workers.swarm.config import SwarmConfig, get_swarm_config
 from src.workers.swarm.dispatcher import SwarmDispatcher
+from src.workers.swarm.executor import ReviewExecutor
 from src.workers.swarm.redis_store import SwarmRedisStore
 from src.workers.swarm.reviewers import default_registry
 from src.workers.swarm.session import SwarmSessionManager
@@ -257,6 +260,11 @@ async def async_main() -> None:
     redis_client = await get_redis_client()
     logger.info("Redis client initialized")
 
+    # Create LLM infrastructure for real reviews
+    llm_config_service = LLMConfigService(redis_client=redis_client)
+    llm_factory = LLMClientFactory(config_service=llm_config_service)
+    review_executor = ReviewExecutor(factory=llm_factory)
+
     # Create swarm components
     redis_store = SwarmRedisStore(redis_client, swarm_config)
     _swarm_session_manager = SwarmSessionManager(redis_store, swarm_config)
@@ -265,8 +273,9 @@ async def async_main() -> None:
         redis_store=redis_store,
         registry=default_registry,
         config=swarm_config,
+        review_executor=review_executor.execute_review,
     )
-    logger.info("Swarm components initialized")
+    logger.info("Swarm components initialized (real LLM executor)")
 
     # Initialize health checker
     health_checker = get_health_checker(service_name)

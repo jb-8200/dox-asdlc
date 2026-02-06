@@ -211,13 +211,67 @@ class LLMConfigService:
     async def get_models(self, provider: LLMProvider) -> list[LLMModel]:
         """Get list of models for a specific provider.
 
+        Attempts dynamic discovery using any available API key for the provider.
+        Falls back to hardcoded list if no keys exist or discovery fails.
+
         Args:
             provider: The LLM provider to get models for.
 
         Returns:
             list[LLMModel]: List of models for the provider.
         """
+        # Try dynamic discovery first
+        try:
+            key_id = await self._find_key_for_provider(provider)
+            if key_id:
+                discovered = await self.get_cached_models(key_id)
+                if discovered:
+                    logger.info(
+                        "Using dynamically discovered models for %s "
+                        "(%d models found)",
+                        provider.value,
+                        len(discovered),
+                    )
+                    return [
+                        LLMModel(
+                            id=m["id"],
+                            name=m.get("name", m["id"]),
+                            provider=provider,
+                            context_window=m.get("context_window", 200000),
+                            max_output=m.get("max_output", 8192),
+                            capabilities=m.get(
+                                "capabilities", ["chat", "tools"]
+                            ),
+                        )
+                        for m in discovered
+                    ]
+        except Exception as e:
+            logger.warning(
+                "Dynamic model discovery failed for %s: %s", provider, e
+            )
+
+        # Fallback to static list
+        logger.debug(
+            "Using static model list for %s", provider.value
+        )
         return MODELS_BY_PROVIDER.get(provider, [])
+
+    async def _find_key_for_provider(
+        self, provider: LLMProvider
+    ) -> str | None:
+        """Find the first valid API key for a provider.
+
+        Args:
+            provider: The LLM provider to find a key for.
+
+        Returns:
+            The key ID if found, None otherwise.
+        """
+        keys = await self.get_keys()
+        for key in keys:
+            if key.provider == provider and key.is_valid:
+                return key.id
+        return None
 
     async def add_key(self, key_create: APIKeyCreate) -> APIKey:
         """Add a new API key.

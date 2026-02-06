@@ -696,7 +696,7 @@ export interface SwarmReviewResponse {
  * Status of a single reviewer in the swarm
  */
 export interface ReviewerStatus {
-  status: 'pending' | 'in_progress' | 'complete' | 'failed';
+  status: 'pending' | 'in_progress' | 'complete' | 'success' | 'failed';
   files_reviewed: number;
   findings_count: number;
   progress_percent: number;

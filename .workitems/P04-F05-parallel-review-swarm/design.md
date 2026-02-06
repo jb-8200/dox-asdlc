@@ -361,6 +361,18 @@ async def get_swarm_status(
     ...
 ```
 
+## LLM Integration (ReviewExecutor)
+
+The `ReviewExecutor` (`src/workers/swarm/executor.py`) orchestrates actual LLM-based code reviews for each reviewer type. It is composed of three classes:
+
+- **`CodeExtractor`** -- Reads code files from the workspace, filters by extension (`.py`, `.ts`, `.tsx`, etc.), and enforces per-file and total size limits to stay within LLM context windows.
+- **`ResponseParser`** -- Extracts structured JSON findings from LLM prose-wrapped responses. Uses a bracket-finding strategy (locating the outermost `[...]` or `{...}`) rather than relying on code-fence stripping, since LLMs frequently wrap JSON in explanatory text.
+- **`ReviewExecutor`** -- Accepts an `LLMConfigService` and reviewer configuration. Builds a specialized prompt per reviewer type, calls the LLM, parses findings, and returns a `ReviewerResult`.
+
+**Dispatch pattern:** The dispatcher uses fire-and-forget `asyncio.create_task()` instead of `await asyncio.gather()` so the API response returns immediately while reviews run in the background. Results are polled via the status endpoint.
+
+**Wiring:** `src/workers/swarm/main.py` creates the `ReviewExecutor` (with encryption key from env) and injects it into the `SwarmDispatcher`. The orchestrator's `swarm.py` routes use the same pattern via `_ensure_swarm_components()` for lazy initialization.
+
 ## Task Tool Parallel Execution Pattern
 
 The swarm uses the Task tool to spawn parallel agents. Here is the execution pattern:

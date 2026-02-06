@@ -210,32 +210,48 @@ export default function LLMConfigPage({ className }: LLMConfigPageProps) {
     [testKeyMutation]
   );
 
+  // Auto-save helper: persists a partial config update to the backend immediately
+  const autoSaveConfig = useCallback(
+    async (role: AgentRole, config: Partial<{ provider: LLMProvider; model: string; apiKeyId: string; enabled: boolean }>) => {
+      try {
+        await updateConfigMutation.mutateAsync({ role, config });
+      } catch (err) {
+        console.warn('Auto-save failed for', role, err);
+      }
+    },
+    [updateConfigMutation]
+  );
+
   const handleProviderChange = useCallback(
     (role: AgentRole, provider: LLMProvider) => {
       updateAgentConfigLocal(role, { provider });
+      autoSaveConfig(role, { provider });
     },
-    [updateAgentConfigLocal]
+    [updateAgentConfigLocal, autoSaveConfig]
   );
 
   const handleModelChange = useCallback(
     (role: AgentRole, model: string) => {
       updateAgentConfigLocal(role, { model });
+      autoSaveConfig(role, { model });
     },
-    [updateAgentConfigLocal]
+    [updateAgentConfigLocal, autoSaveConfig]
   );
 
   const handleApiKeyChange = useCallback(
     (role: AgentRole, apiKeyId: string) => {
       updateAgentConfigLocal(role, { apiKeyId });
+      autoSaveConfig(role, { apiKeyId });
     },
-    [updateAgentConfigLocal]
+    [updateAgentConfigLocal, autoSaveConfig]
   );
 
   const handleEnabledChange = useCallback(
     (role: AgentRole, enabled: boolean) => {
       updateAgentConfigLocal(role, { enabled });
+      autoSaveConfig(role, { enabled });
     },
-    [updateAgentConfigLocal]
+    [updateAgentConfigLocal, autoSaveConfig]
   );
 
   const handleSettingsChange = useCallback(

@@ -186,7 +186,10 @@ async def _ensure_swarm_components() -> (
 
         try:
             from src.core.redis_client import get_redis_client
+            from src.infrastructure.llm.factory import LLMClientFactory
+            from src.orchestrator.services.llm_config_service import LLMConfigService
             from src.workers.swarm.dispatcher import SwarmDispatcher as _Dispatcher
+            from src.workers.swarm.executor import ReviewExecutor
             from src.workers.swarm.redis_store import SwarmRedisStore as _Store
             from src.workers.swarm.session import SwarmSessionManager as _Manager
 
@@ -195,11 +198,18 @@ async def _ensure_swarm_components() -> (
             config = _get_swarm_config()
             _cached_redis_store = _Store(redis_client, config)
             _cached_session_manager = _Manager(_cached_redis_store, config)
+
+            # Wire up real LLM executor for code reviews
+            llm_config_service = LLMConfigService(redis_client=redis_client)
+            llm_factory = LLMClientFactory(config_service=llm_config_service)
+            review_executor = ReviewExecutor(factory=llm_factory)
+
             _cached_dispatcher = _Dispatcher(
                 session_manager=_cached_session_manager,
                 redis_store=_cached_redis_store,
                 registry=default_registry,
                 config=config,
+                review_executor=review_executor.execute_review,
             )
             return _cached_redis_store, _cached_session_manager, _cached_dispatcher
         except Exception as exc:
@@ -521,12 +531,15 @@ async def get_swarm_status(
     for reviewer_type in session.reviewers:
         result = actual_results.get(reviewer_type)
         if result is None:
-            # Reviewer hasn't completed yet
+            # Reviewer hasn't completed yet.  Show "in_progress" when
+            # the session is actively running so the frontend renders
+            # animated progress bars instead of a static "pending" state.
+            is_running = session.status in ("in_progress", "aggregating")
             reviewers[reviewer_type] = ReviewerStatusResponse(
-                status="pending",
+                status="in_progress" if is_running else "pending",
                 files_reviewed=0,
                 findings_count=0,
-                progress_percent=0,
+                progress_percent=30 if is_running else 0,
                 duration_seconds=None,
             )
         else:

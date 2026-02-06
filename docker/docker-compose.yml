@@ -136,6 +136,7 @@ services:
       - KNOWLEDGE_STORE_BACKEND=elasticsearch
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LLM_CONFIG_ENCRYPTION_KEY=za4k9itJgd8wPic7VjUuXlhsj0yBqGNnA81dPJbZ57s=
     volumes:
       - ../:/app/workspace:ro
     depends_on:

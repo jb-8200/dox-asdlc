@@ -660,6 +660,22 @@ T01 ──► T15 ──► T16 ──► T17
 
 ---
 
+## Phase 8: LLM Integration (Added)
+
+### T24: Create ReviewExecutor with LLM Integration
+**Estimate:** 3 hours
+**Status:** COMPLETE
+
+- [x] Create `src/workers/swarm/executor.py` with CodeExtractor, ResponseParser, ReviewExecutor
+- [x] Wire executor into dispatcher via `main.py` and `swarm.py` routes
+- [x] Add `LLM_CONFIG_ENCRYPTION_KEY` to review-swarm container in docker-compose.yml
+- [x] Fix JSON extraction from LLM prose-wrapped responses (bracket-finding strategy)
+- [x] Fix blocking dispatch: change asyncio.gather to fire-and-forget asyncio.create_task
+- [x] Add unified_report persistence to Redis in dispatcher.finalize_swarm
+- [x] Write unit tests in `tests/unit/workers/swarm/test_executor.py`
+
+---
+
 ## Notes
 
 - All tasks follow TDD: write failing test first

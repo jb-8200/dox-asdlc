@@ -49,10 +49,13 @@ export function ReviewProgressPanel({
       const reviewerType = type as ReviewerType;
       const previousStatus = previousStatusRef.current[reviewerType];
 
+      // Normalize API status: backend returns 'success', store uses 'complete'
+      const normalizedStatus = progress.status === 'success' ? 'complete' : progress.status;
+
       // Update progress in store
       updateProgress(reviewerType, {
         type: reviewerType,
-        status: progress.status,
+        status: normalizedStatus,
         progress: progress.progress_percent,
         filesReviewed: progress.files_reviewed,
         findingsCount: progress.findings_count,
@@ -60,8 +63,8 @@ export function ReviewProgressPanel({
       });
 
       // Add CLI entry for status changes (only if status actually changed)
-      if (progress.status !== previousStatus) {
-        if (progress.status === 'complete') {
+      if (normalizedStatus !== previousStatus) {
+        if (normalizedStatus === 'complete') {
           addCLIEntry({
             reviewer: reviewerType,
             message: `Completed with ${progress.findings_count} findings`,
@@ -69,7 +72,7 @@ export function ReviewProgressPanel({
           });
         }
 
-        if (progress.status === 'in_progress') {
+        if (normalizedStatus === 'in_progress') {
           addCLIEntry({
             reviewer: reviewerType,
             message: 'Starting review...',
@@ -77,7 +80,7 @@ export function ReviewProgressPanel({
           });
         }
 
-        if (progress.status === 'failed') {
+        if (normalizedStatus === 'failed') {
           addCLIEntry({
             reviewer: reviewerType,
             message: 'Review failed',
@@ -86,7 +89,7 @@ export function ReviewProgressPanel({
         }
 
         // Update the previous status ref
-        previousStatusRef.current[reviewerType] = progress.status;
+        previousStatusRef.current[reviewerType] = normalizedStatus;
       }
     });
 

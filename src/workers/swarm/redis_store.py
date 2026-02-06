@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from src.workers.swarm.config import SwarmConfig
-from src.workers.swarm.models import ReviewerResult, SwarmSession, SwarmStatus
+from src.workers.swarm.models import ReviewerResult, SwarmSession, SwarmStatus, UnifiedReport
 
 if TYPE_CHECKING:
     import redis.asyncio as redis
@@ -146,8 +146,24 @@ class SwarmRedisStore:
             created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
             completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") not in (None, "", "None") else None,
             results=self._deserialize_results(data.get("results", "{}")),
-            unified_report=None,  # TODO: Deserialize unified_report if needed
+            unified_report=self._deserialize_unified_report(data.get("unified_report", "")),
         )
+
+    def _deserialize_unified_report(self, report_json: str) -> UnifiedReport | None:
+        """Deserialize unified report from JSON string.
+
+        Args:
+            report_json: JSON string containing the unified report.
+
+        Returns:
+            The UnifiedReport if valid JSON is provided, None otherwise.
+        """
+        if not report_json:
+            return None
+        try:
+            return UnifiedReport.model_validate_json(report_json)
+        except Exception:
+            return None
 
     def _deserialize_results(self, results_json: str) -> dict[str, ReviewerResult]:
         """Deserialize results dictionary from JSON string.
